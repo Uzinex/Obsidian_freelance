@@ -20,11 +20,9 @@ class RegisterView(generics.CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        user_data = response.data
-        user = self.get_queryset().model.objects.get(nickname=user_data["nickname"])
+        user = self.get_queryset().model.objects.get(nickname=response.data["nickname"])
         token, _created = Token.objects.get_or_create(user=user)
-        user_data.update({"token": token.key})
-        response.data = user_data
+        response.data = {"token": token.key, "user": UserSerializer(user).data}
         return response
 
     def get_queryset(self):
