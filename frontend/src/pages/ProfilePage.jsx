@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { fetchProfile, fetchSkills, upsertProfile } from '../api/client.js';
+import {
+  fetchProfile,
+  fetchSkills,
+  upsertProfile,
+  logout as logoutRequest,
+  applyAuthToken,
+} from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import SkillSelector from '../components/SkillSelector.jsx';
 
@@ -35,8 +42,28 @@ function composeName(user) {
   return user.nickname || 'Пользователь';
 }
 
+function getProfileFormDefaults(profile) {
+  return {
+    role: profile?.role || 'freelancer',
+    freelancer_type: profile?.freelancer_type || 'individual',
+    company_registered_as: profile?.company_registered_as || 'none',
+    skills: profile?.skills || [],
+    phone_number: profile?.phone_number || '',
+    company_name: profile?.company_name || '',
+    company_country: profile?.company_country || '',
+    company_city: profile?.company_city || '',
+    company_street: profile?.company_street || '',
+    company_tax_id: profile?.company_tax_id || '',
+    country: profile?.country || '',
+    city: profile?.city || '',
+    street: profile?.street || '',
+    house: profile?.house || '',
+    avatar: null,
+  };
+}
+
 export default function ProfilePage() {
-  const { user, login, token } = useAuth();
+  const { user, login, token, logout, isVerificationAdmin } = useAuth();
   const [skills, setSkills] = useState([]);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -45,50 +72,16 @@ export default function ProfilePage() {
   const [avatarPreview, setAvatarPreview] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
   const profile = user?.profile;
+  const profileDefaults = useMemo(() => getProfileFormDefaults(profile), [profile]);
 
   const form = useForm({
-    defaultValues: useMemo(
-      () => ({
-        role: profile?.role || 'freelancer',
-        freelancer_type: profile?.freelancer_type || 'individual',
-        company_registered_as: profile?.company_registered_as || 'none',
-        skills: profile?.skills || [],
-        phone_number: profile?.phone_number || '',
-        company_name: profile?.company_name || '',
-        company_country: profile?.company_country || '',
-        company_city: profile?.company_city || '',
-        company_street: profile?.company_street || '',
-        company_tax_id: profile?.company_tax_id || '',
-        country: profile?.country || '',
-        city: profile?.city || '',
-        street: profile?.street || '',
-        house: profile?.house || '',
-        avatar: null,
-      }),
-      [profile],
-    ),
+    defaultValues: profileDefaults,
   });
 
   useEffect(() => {
-    form.reset({
-      role: profile?.role || 'freelancer',
-      freelancer_type: profile?.freelancer_type || 'individual',
-      company_registered_as: profile?.company_registered_as || 'none',
-      skills: profile?.skills || [],
-      phone_number: profile?.phone_number || '',
-      company_name: profile?.company_name || '',
-      company_country: profile?.company_country || '',
-      company_city: profile?.company_city || '',
-      company_street: profile?.company_street || '',
-      company_tax_id: profile?.company_tax_id || '',
-      country: profile?.country || '',
-      city: profile?.city || '',
-      street: profile?.street || '',
-      house: profile?.house || '',
-      avatar: null,
-    });
+    form.reset(profileDefaults);
     setAvatarPreview(resolveAvatar(profile?.avatar));
-  }, [profile, form]);
+  }, [profileDefaults, profile, form]);
 
   useEffect(() => {
     async function loadData() {
@@ -159,23 +152,7 @@ export default function ProfilePage() {
       }
 
       login(token, { ...user, profile: finalProfile });
-      form.reset({
-        role: finalProfile.role || 'freelancer',
-        freelancer_type: finalProfile.freelancer_type || 'individual',
-        company_registered_as: finalProfile.company_registered_as || 'none',
-        skills: finalProfile.skills || [],
-        phone_number: finalProfile.phone_number || '',
-        company_name: finalProfile.company_name || '',
-        company_country: finalProfile.company_country || '',
-        company_city: finalProfile.company_city || '',
-        company_street: finalProfile.company_street || '',
-        company_tax_id: finalProfile.company_tax_id || '',
-        country: finalProfile.country || '',
-        city: finalProfile.city || '',
-        street: finalProfile.street || '',
-        house: finalProfile.house || '',
-        avatar: null,
-      });
+      form.reset(getProfileFormDefaults(finalProfile));
       setAvatarPreview(resolveAvatar(finalProfile.avatar));
       setIsEditing(false);
       setMessage('Профиль успешно сохранен.');
@@ -184,6 +161,29 @@ export default function ProfilePage() {
       setError('Ошибка при сохранении профиля.');
     }
   }
+
+  const isVerified = Boolean(profile?.is_verified);
+  const verificationLabel = isVerified ? 'Верифицирован' : 'Не верифицирован';
+
+  const handleEditToggle = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl('');
+    }
+    form.reset(profileDefaults);
+    setAvatarPreview(resolveAvatar(profile?.avatar));
+    setIsEditing((prev) => !prev);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logoutRequest();
+    } catch (logoutError) {
+      console.warn('Failed to logout from API', logoutError);
+    }
+    applyAuthToken(null);
+    logout();
+  };
 
   if (loading) {
     return <div className="card">Загрузка...</div>;
@@ -202,6 +202,9 @@ export default function ProfilePage() {
           </div>
           <div>
             <h1>{displayName}</h1>
+            <div className="profile-verification">
+              <span className={`verification-badge ${isVerified ? 'verified' : 'unverified'}`}>{verificationLabel}</span>
+            </div>
             {roleLabel && <p className="profile-role">{roleLabel}</p>}
             {profile?.freelancer_type && (
               <p className="profile-role subtle">
@@ -210,32 +213,26 @@ export default function ProfilePage() {
             )}
           </div>
           <div className="profile-actions">
-            <button
-              type="button"
-              className="button secondary"
-              onClick={() => {
-                setIsEditing((prev) => !prev);
-                form.reset({
-                  role: profile?.role || 'freelancer',
-                  freelancer_type: profile?.freelancer_type || 'individual',
-                  company_registered_as: profile?.company_registered_as || 'none',
-                  skills: profile?.skills || [],
-                  phone_number: profile?.phone_number || '',
-                  company_name: profile?.company_name || '',
-                  company_country: profile?.company_country || '',
-                  company_city: profile?.company_city || '',
-                  company_street: profile?.company_street || '',
-                  company_tax_id: profile?.company_tax_id || '',
-                  country: profile?.country || '',
-                  city: profile?.city || '',
-                  street: profile?.street || '',
-                  house: profile?.house || '',
-                  avatar: null,
-                });
-                setAvatarPreview(resolveAvatar(profile?.avatar));
-              }}
-            >
+            {!isVerificationAdmin && !isVerified && (
+              <Link to="/verification" className="button ghost">
+                Пройти верификацию
+              </Link>
+            )}
+            {isVerificationAdmin && (
+              <>
+                <Link to="/verification" className="button ghost">
+                  Верификация
+                </Link>
+                <Link to="/verification/requests" className="button ghost">
+                  Заявки
+                </Link>
+              </>
+            )}
+            <button type="button" className="button secondary" onClick={handleEditToggle}>
               {isEditing ? 'Отменить' : 'Редактировать профиль'}
+            </button>
+            <button type="button" className="button ghost" onClick={handleLogout}>
+              Выйти
             </button>
           </div>
         </div>

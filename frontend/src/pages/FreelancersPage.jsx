@@ -77,6 +77,8 @@ export default function FreelancersPage() {
             const name = [profile.user?.first_name, profile.user?.last_name].filter(Boolean).join(' ') ||
               profile.user?.nickname;
             const location = [profile.country, profile.city].filter(Boolean).join(', ');
+            const isVerified = Boolean(profile.is_verified);
+            const verificationLabel = isVerified ? 'Верифицирован' : 'Не верифицирован';
             return (
               <article key={profile.id} className="person-card">
                 <div className="person-avatar" aria-hidden="true">
@@ -88,6 +90,11 @@ export default function FreelancersPage() {
                 </div>
                 <div className="person-info">
                   <h2>{name}</h2>
+                  <div className="person-verification">
+                    <span className={`verification-badge ${isVerified ? 'verified' : 'unverified'}`}>
+                      {verificationLabel}
+                    </span>
+                  </div>
                   <p className="person-role">
                     {profile.freelancer_type === 'company' ? 'Команда фрилансеров' : 'Индивидуальный специалист'}
                   </p>

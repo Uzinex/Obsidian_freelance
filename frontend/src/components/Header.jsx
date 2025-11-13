@@ -1,20 +1,9 @@
 import { useMemo } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { logout as logoutRequest, applyAuthToken } from '../api/client.js';
 
 export default function Header() {
-  const { isAuthenticated, user, logout, isVerificationAdmin } = useAuth();
-
-  const handleLogout = async () => {
-    try {
-      await logoutRequest();
-    } catch (error) {
-      console.warn('Failed to logout from API', error);
-    }
-    applyAuthToken(null);
-    logout();
-  };
+  const { isAuthenticated } = useAuth();
 
   const navigation = useMemo(() => {
     const base = [
@@ -48,24 +37,10 @@ export default function Header() {
         label: 'Профиль',
         icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/user-male-circle.png',
       });
-      if (user?.profile && !user.profile.is_verified) {
-        base.push({
-          to: '/verification',
-          label: 'Верификация',
-          icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/approval.png',
-        });
-      }
-      if (isVerificationAdmin) {
-        base.push({
-          to: '/verification/requests',
-          label: 'Заявки',
-          icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/clipboard-list.png',
-        });
-      }
     }
 
     return base;
-  }, [isAuthenticated, isVerificationAdmin, user]);
+  }, [isAuthenticated]);
 
   return (
     <header className="header">
@@ -99,11 +74,7 @@ export default function Header() {
                 Регистрация
               </NavLink>
             </>
-          ) : (
-            <button type="button" className="button primary" onClick={handleLogout}>
-              Выйти
-            </button>
-          )}
+          ) : null}
         </div>
       </div>
     </header>
