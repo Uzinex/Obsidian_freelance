@@ -783,6 +783,32 @@ textarea:focus {
   gap: 0.4rem;
 }
 
+.person-verification {
+  margin-top: 0.25rem;
+}
+
+.verification-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.verification-badge.verified {
+  background: #ecfdf3;
+  color: #047857;
+}
+
+.verification-badge.unverified {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .empty-state {
   text-align: center;
   padding: 2rem;
@@ -823,6 +849,17 @@ textarea:focus {
 .profile-actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.profile-verification {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: flex-start;
+  margin: 0.5rem 0 0;
 }
 
 .profile-summary-grid {
@@ -1000,6 +1037,10 @@ textarea:focus {
   }
 
   .profile-actions {
+    justify-content: center;
+  }
+
+  .profile-verification {
     justify-content: center;
   }
 }
