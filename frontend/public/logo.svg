@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 140" role="img" aria-labelledby="title desc">
+  <title id="title">Obsidian Freelance Logo</title>
+  <desc id="desc">A geometric obsidian crystal icon.</desc>
+  <g fill="#111111">
+    <path d="M48 2 12 50l20 80 18 8 18-8 20-80L52 2h-4z" opacity="0.95" />
+    <path d="M48 2v40l-20 24 24 70V82l24-30-28-50z" fill="#1d1d1d" />
+    <path d="m52 2 28 50-20 30-8-24V2z" fill="#000000" opacity="0.85" />
+  </g>
+</svg>
