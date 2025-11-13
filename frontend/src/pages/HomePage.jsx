@@ -21,6 +21,42 @@ const stats = [
   },
 ];
 
+const categoryVisuals = {
+  marketing: 'https://img.icons8.com/color/64/marketing.png',
+  design: 'https://img.icons8.com/color/64/design--v1.png',
+  'искусственный интеллект': 'https://img.icons8.com/color/64/artificial-intelligence.png',
+  'artificial-intelligence': 'https://img.icons8.com/color/64/artificial-intelligence.png',
+  programming: 'https://img.icons8.com/color/64/source-code.png',
+  'программирование': 'https://img.icons8.com/color/64/source-code.png',
+  'услуги администрирования': 'https://img.icons8.com/color/64/services.png',
+  'uslugi-administrirovaniya': 'https://img.icons8.com/color/64/services.png',
+  'услуги видео и аудио': 'https://img.icons8.com/color/64/video-clip.png',
+  'uslugi-video-i-audio': 'https://img.icons8.com/color/64/video-clip.png',
+  'услуги редактирования': 'https://img.icons8.com/color/64/edit-file.png',
+  'uslugi-redaktirovaniya': 'https://img.icons8.com/color/64/edit-file.png',
+};
+
+const getCategoryVisual = (category) => {
+  const normalizedName = category.name?.toLowerCase().trim();
+  const normalizedSlug = category.slug?.toLowerCase().trim();
+
+  const keysToCheck = [
+    normalizedSlug,
+    normalizedSlug?.replace(/-/g, ' '),
+    normalizedSlug?.replace(/-/g, '_'),
+    normalizedName,
+    normalizedName?.replace(/\s+/g, '-'),
+  ].filter(Boolean);
+
+  for (const key of keysToCheck) {
+    if (categoryVisuals[key]) {
+      return categoryVisuals[key];
+    }
+  }
+
+  return 'https://img.icons8.com/color/64/conference-call.png';
+};
+
 const steps = [
   {
     title: 'Опишите задачу',
@@ -125,17 +161,12 @@ export default function HomePage() {
         <div className="category-grid">
           {categories.map((category) => (
             <Link key={category.id} to={`/orders?category=${category.slug}`} className="category-card">
+              <div className="category-card-visual">
+                <img src={getCategoryVisual(category)} alt="" aria-hidden="true" />
+              </div>
               <div className="category-card-body">
                 <h3>{category.name}</h3>
                 <p>{category.description}</p>
-              </div>
-              <div className="category-card-footer">
-                <span>Открыть подборку</span>
-                <img
-                  src="https://img.icons8.com/ios-glyphs/18/1f1f1f/circled-right-2.png"
-                  alt=""
-                  aria-hidden="true"
-                />
               </div>
             </Link>
           ))}
