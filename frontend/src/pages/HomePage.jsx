@@ -1,25 +1,41 @@
 import { Link } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { fetchCategories, fetchOrders } from '../api/client.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const stats = [
-  { value: '1 200+', label: 'проектов запущено' },
-  { value: '48 ч', label: 'среднее время подбора команды' },
-  { value: '97%', label: 'успешных завершений' },
+  {
+    value: '1 200+',
+    label: 'проектов запущено',
+    icon: 'https://img.icons8.com/ios-filled/32/f5f5f5/rocket.png',
+  },
+  {
+    value: '48 ч',
+    label: 'среднее время подбора команды',
+    icon: 'https://img.icons8.com/ios-filled/32/f5f5f5/alarm-clock.png',
+  },
+  {
+    value: '97%',
+    label: 'успешных завершений',
+    icon: 'https://img.icons8.com/ios-filled/32/f5f5f5/approval.png',
+  },
 ];
 
 const steps = [
   {
     title: 'Опишите задачу',
-    description: 'Укажите бюджет, сроки и необходимые навыки — мы поможем собрать идеальный бриф.',
+    description:
+      'Укажите бюджет, сроки и необходимые навыки — мы поможем собрать идеальный бриф.',
   },
   {
     title: 'Подберите специалистов',
-    description: 'Используйте фильтры по категориям и навыкам или доверьте подбор нашим ассистентам.',
+    description:
+      'Используйте фильтры по категориям и навыкам или доверьте подбор нашим ассистентам.',
   },
   {
     title: 'Запустите проект',
-    description: 'Отслеживайте прогресс, общайтесь в чате и получайте отчеты прямо в личном кабинете.',
+    description:
+      'Отслеживайте прогресс, общайтесь в чате и получайте отчеты прямо в личном кабинете.',
   },
 ];
 
@@ -35,6 +51,7 @@ const orderTypeLabels = {
 export default function HomePage() {
   const [categories, setCategories] = useState([]);
   const [latestOrders, setLatestOrders] = useState([]);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     async function loadData() {
@@ -52,20 +69,32 @@ export default function HomePage() {
     loadData();
   }, []);
 
+  const primaryAction = useMemo(
+    () => ({
+      to: isAuthenticated ? '/orders' : '/register',
+      label: isAuthenticated ? 'Перейти к заказам' : 'Начать сейчас',
+    }),
+    [isAuthenticated],
+  );
+
   return (
     <div className="homepage">
       <section className="hero home-hero">
-        <div>
-          <h1>Объединяем лучшие команды для сложных проектов</h1>
+        <div className="home-hero-content">
+          <span className="hero-pill">
+            <img src="https://img.icons8.com/ios-filled/20/f5f5f5/dizzy-person.png" alt="" aria-hidden="true" />
+            Платформа для сложных цифровых задач
+          </span>
+          <h1>Объединяем лучшие команды для амбициозных проектов</h1>
           <p>
-            Платформа Obsidian Freelance помогает заказчикам запускать цифровые продукты, а специалистам — находить
-            задачи уровня мечты. Все процессы прозрачны, а сделки защищены.
+            Obsidian Freelance помогает заказчикам запускать цифровые продукты, а специалистам — находить задачи
+            уровня мечты. Все процессы прозрачны, а сделки защищены.
           </p>
           <div className="hero-actions">
-            <Link className="button primary" to="/register">
-              Начать сейчас
+            <Link className="button primary" to={primaryAction.to}>
+              {primaryAction.label}
             </Link>
-            <Link className="button secondary" to="/orders">
+            <Link className="button ghost" to="/orders">
               Смотреть работы
             </Link>
           </div>
@@ -73,8 +102,11 @@ export default function HomePage() {
         <div className="hero-stats">
           {stats.map((item) => (
             <div key={item.label} className="hero-stat">
-              <span>{item.value}</span>
-              <p>{item.label}</p>
+              <img src={item.icon} alt="" aria-hidden="true" />
+              <div>
+                <span>{item.value}</span>
+                <p>{item.label}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -86,21 +118,26 @@ export default function HomePage() {
             <h2>Категории работ</h2>
             <p>Выберите направление и найдите проекты или специалистов в несколько кликов.</p>
           </div>
-          <Link to="/orders" className="button secondary">
+          <Link to="/orders" className="button ghost">
             Все работы
           </Link>
         </header>
         <div className="category-grid">
           {categories.map((category) => (
-            <article key={category.id} className="category-card">
+            <Link key={category.id} to={`/orders?category=${category.slug}`} className="category-card">
               <div className="category-card-body">
                 <h3>{category.name}</h3>
                 <p>{category.description}</p>
               </div>
-              <Link to={`/orders?category=${category.slug}`} className="button ghost">
-                Смотреть проекты
-              </Link>
-            </article>
+              <div className="category-card-footer">
+                <span>Открыть подборку</span>
+                <img
+                  src="https://img.icons8.com/ios-glyphs/18/1f1f1f/circled-right-2.png"
+                  alt=""
+                  aria-hidden="true"
+                />
+              </div>
+            </Link>
           ))}
         </div>
       </section>
@@ -124,7 +161,7 @@ export default function HomePage() {
             <h2>Свежие работы</h2>
             <p>Актуальные запросы от проверенных заказчиков.</p>
           </div>
-          <Link to="/orders" className="button secondary">
+          <Link to="/orders" className="button ghost">
             Смотреть все
           </Link>
         </header>
@@ -134,7 +171,14 @@ export default function HomePage() {
             return (
               <article key={order.id} className="order-card">
                 <header>
-                  <h3>{order.title}</h3>
+                  <div className="order-card-title">
+                    <img
+                      src="https://img.icons8.com/ios-filled/28/1f1f1f/lightning-bolt.png"
+                      alt=""
+                      aria-hidden="true"
+                    />
+                    <h3>{order.title}</h3>
+                  </div>
                   <span className="status">{orderTypeLabels[order.order_type] || order.order_type}</span>
                 </header>
                 <p>{description}</p>

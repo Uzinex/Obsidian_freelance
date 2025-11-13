@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { fetchCategories, fetchOrders, fetchSkills } from '../api/client.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const orderTypeLabels = {
   urgent: 'Срочный',
@@ -17,6 +18,9 @@ export default function OrdersPage() {
   const [categories, setCategories] = useState([]);
   const [skills, setSkills] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { isAuthenticated, user } = useAuth();
+
+  const role = user?.profile?.role || user?.role;
 
   useEffect(() => {
     async function loadFilters() {
@@ -62,10 +66,27 @@ export default function OrdersPage() {
   };
 
   return (
-    <div className="grid" style={{ gap: '2rem' }}>
-      <section className="card">
-        <h1>Все заказы</h1>
-        <div className="grid two">
+    <div className="orders-page">
+      <section className="card soft page-header">
+        <div className="page-header-content">
+          <span className="page-header-icon">
+            <img src="https://img.icons8.com/ios-filled/32/1f1f1f/task.png" alt="Иконка заказов" />
+          </span>
+          <div>
+            <h1>Все заказы</h1>
+            <p>Фильтруйте открытые проекты по категориям, навыкам и формату сотрудничества.</p>
+          </div>
+        </div>
+        {role === 'client' && isAuthenticated && (
+          <Link to="/orders/create" className="button primary">
+            Создать заказ
+          </Link>
+        )}
+      </section>
+
+      <section className="card filter-card">
+        <h2>Подбор параметров</h2>
+        <div className="grid three">
           <div>
             <label htmlFor="category">Категория</label>
             <select id="category" name="category" value={params.get('category') || ''} onChange={handleFilterChange}>
@@ -105,6 +126,8 @@ export default function OrdersPage() {
 
       {loading ? (
         <div className="card">Загрузка заказов...</div>
+      ) : orders.length === 0 ? (
+        <div className="card empty-state">Не найдено подходящих заказов. Попробуйте изменить фильтры.</div>
       ) : (
         <div className="orders-grid">
           {orders.map((order) => {
@@ -112,12 +135,19 @@ export default function OrdersPage() {
             return (
               <article key={order.id} className="order-card">
                 <header>
-                  <h2>{order.title}</h2>
+                  <div className="order-card-title">
+                    <img
+                      src="https://img.icons8.com/ios-filled/28/1f1f1f/todo-list.png"
+                      alt=""
+                      aria-hidden="true"
+                    />
+                    <h2>{order.title}</h2>
+                  </div>
                   <span className="status">{orderTypeLabels[order.order_type] || order.order_type}</span>
                 </header>
                 <p>{summary}</p>
                 <div className="order-meta">
-                  <span>Дедлайн: {new Date(order.deadline).toLocaleString()}</span>
+                  <span>Дедлайн: {new Date(order.deadline).toLocaleDateString()}</span>
                   <span>
                     Выплата: {order.payment_type === 'hourly' ? 'Почасовая' : 'Фиксированная'} — {order.budget} сум
                   </span>

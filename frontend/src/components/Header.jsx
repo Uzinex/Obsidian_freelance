@@ -20,20 +20,44 @@ export default function Header() {
 
   const navigation = useMemo(() => {
     const base = [
-      { to: '/', label: 'Главная страница' },
-      { to: '/about', label: 'О нас' },
+      {
+        to: '/',
+        label: 'Главная',
+        icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/home.png',
+      },
+      {
+        to: '/about',
+        label: 'О нас',
+        icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/info.png',
+      },
     ];
 
     if (role === 'client') {
-      base.push({ to: '/robots', label: 'Роботы' });
+      base.push({
+        to: '/robots',
+        label: 'Роботы',
+        icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/robot-2.png',
+      });
     } else {
-      base.push({ to: '/orders', label: 'Работы' });
+      base.push({
+        to: '/orders',
+        label: 'Работы',
+        icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/task.png',
+      });
     }
 
-    base.push({ to: '/freelancers', label: 'Фрилансеры' });
+    base.push({
+      to: '/freelancers',
+      label: 'Фрилансеры',
+      icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/conference-call.png',
+    });
 
     if (isAuthenticated) {
-      base.push({ to: '/profile', label: 'Профиль' });
+      base.push({
+        to: '/profile',
+        label: 'Профиль',
+        icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/user-male-circle.png',
+      });
     }
 
     return base;
@@ -41,36 +65,43 @@ export default function Header() {
 
   return (
     <header className="header">
-      <Link to="/" className="header-logo">
-        <img src="/logo.svg" alt="Obsidian Freelance" />
-        <span>OBSIDIAN FREELANCE</span>
-      </Link>
-      <nav className="nav-links">
-        {navigation.map((item) => (
-          <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? 'button secondary active' : 'button secondary')}>
-            {item.label}
-          </NavLink>
-        ))}
-        {role === 'client' && isAuthenticated && (
-          <NavLink to="/orders/create" className="button primary">
-            Создать заказ
-          </NavLink>
-        )}
-        {!isAuthenticated ? (
-          <>
-            <NavLink to="/login" className="button secondary">
-              Войти
+      <div className="header-inner">
+        <Link to="/" className="header-logo">
+          <img src="/logo.svg" alt="Obsidian Freelance" />
+          <div className="header-logo-text">
+            <span>OBSIDIAN</span>
+            <strong>FREELANCE</strong>
+          </div>
+        </Link>
+        <nav className="nav-links">
+          {navigation.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}
+            >
+              <img src={item.icon} alt="" aria-hidden="true" className="nav-icon" />
+              <span>{item.label}</span>
             </NavLink>
-            <NavLink to="/register" className="button primary">
-              Регистрация
-            </NavLink>
-          </>
-        ) : (
-          <button type="button" className="button primary" onClick={handleLogout}>
-            Выйти
-          </button>
-        )}
-      </nav>
+          ))}
+        </nav>
+        <div className="header-actions">
+          {!isAuthenticated ? (
+            <>
+              <NavLink to="/login" className="button ghost">
+                Войти
+              </NavLink>
+              <NavLink to="/register" className="button primary">
+                Регистрация
+              </NavLink>
+            </>
+          ) : (
+            <button type="button" className="button primary" onClick={handleLogout}>
+              Выйти
+            </button>
+          )}
+        </div>
+      </div>
     </header>
   );
 }
