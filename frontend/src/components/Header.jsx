@@ -1,13 +1,7 @@
+import { useMemo } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { logout as logoutRequest, applyAuthToken } from '../api/client.js';
-
-const navItems = [
-  { to: '/orders', label: 'Работа' },
-  { to: '/freelancers', label: 'Фрилансеры' },
-  { to: '/orders/create', label: 'Создать заказ', auth: true, role: 'client' },
-  { to: '/profile', label: 'Профиль', auth: true },
-];
 
 export default function Header() {
   const { isAuthenticated, user, logout } = useAuth();
@@ -24,6 +18,27 @@ export default function Header() {
 
   const role = user?.profile?.role || user?.role;
 
+  const navigation = useMemo(() => {
+    const base = [
+      { to: '/', label: 'Главная страница' },
+      { to: '/about', label: 'О нас' },
+    ];
+
+    if (role === 'client') {
+      base.push({ to: '/robots', label: 'Роботы' });
+    } else {
+      base.push({ to: '/orders', label: 'Работы' });
+    }
+
+    base.push({ to: '/freelancers', label: 'Фрилансеры' });
+
+    if (isAuthenticated) {
+      base.push({ to: '/profile', label: 'Профиль' });
+    }
+
+    return base;
+  }, [role, isAuthenticated]);
+
   return (
     <header className="header">
       <Link to="/" className="header-logo">
@@ -31,19 +46,16 @@ export default function Header() {
         <span>OBSIDIAN FREELANCE</span>
       </Link>
       <nav className="nav-links">
-        {navItems.map((item) => {
-          if (item.auth && !isAuthenticated) return null;
-          if (item.role && item.role !== role) return null;
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) => (isActive ? 'button secondary' : 'button secondary')}
-            >
-              {item.label}
-            </NavLink>
-          );
-        })}
+        {navigation.map((item) => (
+          <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? 'button secondary active' : 'button secondary')}>
+            {item.label}
+          </NavLink>
+        ))}
+        {role === 'client' && isAuthenticated && (
+          <NavLink to="/orders/create" className="button primary">
+            Создать заказ
+          </NavLink>
+        )}
         {!isAuthenticated ? (
           <>
             <NavLink to="/login" className="button secondary">

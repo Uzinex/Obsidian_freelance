@@ -1,0 +1,11 @@
+<svg width="420" height="280" viewBox="0 0 420 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="420" height="280" rx="32" fill="#111" />
+  <circle cx="90" cy="90" r="54" fill="#1F1F1F" />
+  <circle cx="330" cy="70" r="40" fill="#1F1F1F" />
+  <path d="M60 212C60 186 82 166 108 166H312C338 166 360 186 360 212" stroke="#F5F5F5" stroke-width="4" stroke-linecap="round" />
+  <path d="M210 116C210 99.4315 223.431 86 240 86C256.569 86 270 99.4315 270 116" stroke="#F5F5F5" stroke-width="4" stroke-linecap="round" />
+  <circle cx="240" cy="116" r="34" fill="#222" stroke="#F5F5F5" stroke-width="4" />
+  <rect x="84" y="188" width="252" height="16" rx="8" fill="#262626" />
+  <rect x="84" y="214" width="180" height="16" rx="8" fill="#2F2F2F" />
+  <text x="40" y="248" fill="#F5F5F5" font-family="Inter, sans-serif" font-size="28" font-weight="600">Obsidian Freelance</text>
+</svg>

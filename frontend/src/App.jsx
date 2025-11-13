@@ -14,6 +14,8 @@ import OrderDetailPage from './pages/OrderDetailPage.jsx';
 import CreateOrderPage from './pages/CreateOrderPage.jsx';
 import FreelancersPage from './pages/FreelancersPage.jsx';
 import VerificationPage from './pages/VerificationPage.jsx';
+import AboutPage from './pages/AboutPage.jsx';
+import RobotsPage from './pages/RobotsPage.jsx';
 
 export default function App() {
   const { token, user, login, isAuthenticated } = useAuth();
@@ -47,6 +49,7 @@ export default function App() {
       <main className="main-content">
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/about" element={<AboutPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route element={<ProtectedRoute />}>
@@ -55,6 +58,7 @@ export default function App() {
           </Route>
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/orders/:orderId" element={<OrderDetailPage />} />
+          <Route path="/robots" element={<RobotsPage />} />
           <Route element={<ProtectedRoute role="client" />}>
             <Route path="/orders/create" element={<CreateOrderPage />} />
           </Route>
