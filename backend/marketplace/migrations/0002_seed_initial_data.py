@@ -80,29 +80,54 @@ CATEGORY_DATA = {
 }
 
 
+def _generate_unique_slug(model, base_slug):
+    """Return a slug that is unique for the given model."""
+
+    if not base_slug:
+        base_slug = "item"
+
+    unique_slug = base_slug
+    counter = 1
+
+    while model.objects.filter(slug=unique_slug).exists():
+        counter += 1
+        unique_slug = f"{base_slug}-{counter}"
+
+    return unique_slug
+
+
 def seed_categories_and_skills(apps, schema_editor):
     Category = apps.get_model("marketplace", "Category")
     Skill = apps.get_model("marketplace", "Skill")
 
     for category_name, skills in CATEGORY_DATA.items():
-        category, _ = Category.objects.get_or_create(
+        category_slug = slugify(category_name, allow_unicode=True)
+        category_slug = _generate_unique_slug(Category, category_slug)
+        category, created = Category.objects.get_or_create(
             name=category_name,
             defaults={
-                "slug": slugify(category_name, allow_unicode=True),
+                "slug": category_slug,
                 "description": category_name,
             },
         )
         if not category.slug:
-            category.slug = slugify(category_name, allow_unicode=True)
+            category.slug = _generate_unique_slug(
+                Category, slugify(category_name, allow_unicode=True)
+            )
             category.save(update_fields=["slug"])
         for skill_name in skills:
-            Skill.objects.get_or_create(
+            skill_slug = slugify(skill_name, allow_unicode=True)
+            skill_slug = _generate_unique_slug(Skill, skill_slug)
+            skill, created = Skill.objects.get_or_create(
                 name=skill_name,
                 defaults={
-                    "slug": slugify(skill_name, allow_unicode=True),
+                    "slug": skill_slug,
                     "category": category,
                 },
             )
+            if not created and not skill.slug:
+                skill.slug = _generate_unique_slug(Skill, skill_slug)
+                skill.save(update_fields=["slug"])
 
 
 def unseed_categories_and_skills(apps, schema_editor):
