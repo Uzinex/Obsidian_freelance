@@ -16,8 +16,6 @@ export default function Header() {
     logout();
   };
 
-  const role = user?.profile?.role || user?.role;
-
   const navigation = useMemo(() => {
     const base = [
       {
@@ -32,19 +30,11 @@ export default function Header() {
       },
     ];
 
-    if (role === 'client') {
-      base.push({
-        to: '/robots',
-        label: 'Работы',
-        icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/task.png',
-      });
-    } else {
-      base.push({
-        to: '/orders',
-        label: 'Работы',
-        icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/task.png',
-      });
-    }
+    base.push({
+      to: '/orders',
+      label: 'Работы',
+      icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/task.png',
+    });
 
     base.push({
       to: '/freelancers',
@@ -61,7 +51,7 @@ export default function Header() {
     }
 
     return base;
-  }, [role, isAuthenticated]);
+  }, [isAuthenticated]);
 
   return (
     <header className="header">

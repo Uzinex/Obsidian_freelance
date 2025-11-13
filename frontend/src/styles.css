@@ -604,15 +604,13 @@ textarea:focus {
 }
 
 .about-page,
-.robots-page,
 .freelancers-page,
 .profile-page {
   display: grid;
   gap: 2rem;
 }
 
-.about-hero,
-.robots-hero {
+.about-hero {
   display: grid;
   gap: 2rem;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
