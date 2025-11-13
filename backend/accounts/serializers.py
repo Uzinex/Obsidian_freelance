@@ -116,6 +116,19 @@ class ProfileSerializer(serializers.ModelSerializer):
     skills = serializers.PrimaryKeyRelatedField(
         many=True, required=False, queryset=Skill.objects.none()
     )
+    NULLABLE_STRING_FIELDS = {
+        "freelancer_type",
+        "company_name",
+        "company_country",
+        "company_city",
+        "company_street",
+        "company_tax_id",
+        "phone_number",
+        "country",
+        "city",
+        "street",
+        "house",
+    }
 
     class Meta:
         model = Profile
@@ -186,6 +199,13 @@ class ProfileSerializer(serializers.ModelSerializer):
         profile.is_completed = True
         profile.save()
         return profile
+
+    def to_internal_value(self, data):
+        mutable_data = data.copy() if hasattr(data, "copy") else dict(data)
+        for field in self.NULLABLE_STRING_FIELDS:
+            if mutable_data.get(field, serializers.empty) is None:
+                mutable_data[field] = ""
+        return super().to_internal_value(mutable_data)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
