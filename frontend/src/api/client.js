@@ -35,11 +35,12 @@ export async function fetchProfile() {
 }
 
 export async function upsertProfile(data, id) {
+  const config = data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined;
   if (id) {
-    const response = await apiClient.patch(`accounts/profiles/${id}/`, data);
+    const response = await apiClient.patch(`accounts/profiles/${id}/`, data, config);
     return response.data;
   }
-  const response = await apiClient.post('accounts/profiles/', data);
+  const response = await apiClient.post('accounts/profiles/', data, config);
   return response.data;
 }
 

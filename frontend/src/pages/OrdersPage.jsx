@@ -2,6 +2,15 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { fetchCategories, fetchOrders, fetchSkills } from '../api/client.js';
 
+const orderTypeLabels = {
+  urgent: 'Срочный',
+  non_urgent: 'Несрочный',
+  premium: 'Премиум',
+  standard: 'Стандартный',
+  company_only: 'Только компании',
+  individual_only: 'Только фрилансеры',
+};
+
 export default function OrdersPage() {
   const [params, setParams] = useSearchParams();
   const [orders, setOrders] = useState([]);
@@ -16,8 +25,8 @@ export default function OrdersPage() {
           fetchCategories(),
           fetchSkills(),
         ]);
-        setCategories(categoryData);
-        setSkills(skillData);
+        setCategories(categoryData.results || categoryData);
+        setSkills(skillData.results || skillData);
       } catch (error) {
         console.error('Не удалось загрузить фильтры', error);
       }
@@ -97,30 +106,32 @@ export default function OrdersPage() {
       {loading ? (
         <div className="card">Загрузка заказов...</div>
       ) : (
-        <div className="grid two">
+        <div className="orders-grid">
           {orders.map((order) => {
             const summary = order.description ? `${order.description.slice(0, 200)}...` : '';
             return (
-              <article key={order.id} className="card">
-                <header style={{ marginBottom: '1rem' }}>
+              <article key={order.id} className="order-card">
+                <header>
                   <h2>{order.title}</h2>
-                  <span className="status">{order.order_type}</span>
+                  <span className="status">{orderTypeLabels[order.order_type] || order.order_type}</span>
                 </header>
                 <p>{summary}</p>
-              <div style={{ margin: '1rem 0' }}>
-                <strong>Выплата:</strong> {order.payment_type === 'hourly' ? 'Почасовая' : 'Фиксированная'} — {order.budget} сум
-              </div>
-              <div className="status">Дедлайн: {new Date(order.deadline).toLocaleString()}</div>
-              <div style={{ margin: '1rem 0' }}>
-                {order.required_skill_details?.map((skill) => (
-                  <span key={skill.id} className="tag">
-                    {skill.name}
+                <div className="order-meta">
+                  <span>Дедлайн: {new Date(order.deadline).toLocaleString()}</span>
+                  <span>
+                    Выплата: {order.payment_type === 'hourly' ? 'Почасовая' : 'Фиксированная'} — {order.budget} сум
                   </span>
-                ))}
-              </div>
-              <Link to={`/orders/${order.id}`} className="button primary">
-                Открыть
-              </Link>
+                </div>
+                <div className="order-tags">
+                  {order.required_skill_details?.map((skill) => (
+                    <span key={skill.id} className="tag">
+                      {skill.name}
+                    </span>
+                  ))}
+                </div>
+                <Link to={`/orders/${order.id}`} className="button primary">
+                  Открыть
+                </Link>
               </article>
             );
           })}

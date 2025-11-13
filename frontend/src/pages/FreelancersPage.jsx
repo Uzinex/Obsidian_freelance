@@ -1,83 +1,108 @@
-import { useEffect, useState } from 'react';
-import { fetchSkills } from '../api/client.js';
+import { useEffect, useMemo, useState } from 'react';
+import { fetchCategories } from '../api/client.js';
 import { apiClient } from '../api/client.js';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+function resolveAvatar(url) {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  return `${API_BASE_URL}${url}`;
+}
+
 export default function FreelancersPage() {
-  const [skills, setSkills] = useState([]);
-  const [selectedSkill, setSelectedSkill] = useState('');
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadSkills() {
+    async function loadInitial() {
       try {
-        const data = await fetchSkills();
-        setSkills(data);
-      } catch (err) {
-        console.error('Не удалось загрузить навыки', err);
-      }
-    }
-    loadSkills();
-  }, []);
-
-  useEffect(() => {
-    async function loadProfiles() {
-      setLoading(true);
-      try {
-        const params = { role: 'freelancer' };
-        if (selectedSkill) params.skill = selectedSkill;
-        const { data } = await apiClient.get('accounts/profiles/', { params });
-        setProfiles(data);
+        const [categoryData, { data }] = await Promise.all([
+          fetchCategories(),
+          apiClient.get('accounts/profiles/', { params: { role: 'freelancer' } }),
+        ]);
+        setCategories(categoryData.results || categoryData);
+        setProfiles(Array.isArray(data.results) ? data.results : data);
       } catch (err) {
         console.error('Не удалось загрузить фрилансеров', err);
       } finally {
         setLoading(false);
       }
     }
-    loadProfiles();
-  }, [selectedSkill]);
+    loadInitial();
+  }, []);
+
+  const filteredProfiles = useMemo(() => {
+    if (!selectedCategory) return profiles;
+    return profiles.filter((profile) =>
+      profile.skill_details?.some((skill) => skill.category?.toLowerCase() === selectedCategory.toLowerCase()),
+    );
+  }, [profiles, selectedCategory]);
 
   return (
-    <div className="grid" style={{ gap: '2rem' }}>
-      <section className="card">
-        <h1>Найдите фрилансера</h1>
-        <label htmlFor="skillFilter">Фильтр по навыкам</label>
-        <select id="skillFilter" value={selectedSkill} onChange={(event) => setSelectedSkill(event.target.value)}>
-          <option value="">Все навыки</option>
-          {skills.map((skill) => (
-            <option key={skill.id} value={skill.id}>
-              {skill.name}
-            </option>
+    <div className="freelancers-page">
+      <section className="card filter-card">
+        <h1>Фрилансеры платформы</h1>
+        <p>Соберите команду из специалистов, проверенных системой верификации Obsidian Freelance.</p>
+        <div className="filter-chips">
+          <button
+            type="button"
+            className={selectedCategory === '' ? 'chip active' : 'chip'}
+            onClick={() => setSelectedCategory('')}
+          >
+            Все категории
+          </button>
+          {categories.map((category) => (
+            <button
+              key={category.id}
+              type="button"
+              className={selectedCategory === category.name ? 'chip active' : 'chip'}
+              onClick={() => setSelectedCategory(category.name)}
+            >
+              {category.name}
+            </button>
           ))}
-        </select>
+        </div>
       </section>
 
       {loading ? (
         <div className="card">Загрузка фрилансеров...</div>
+      ) : filteredProfiles.length === 0 ? (
+        <div className="card empty-state">В выбранной категории пока нет специалистов. Попробуйте другую.</div>
       ) : (
-        <div className="grid two">
-          {profiles.map((profile) => (
-            <article key={profile.id} className="card">
-              <h2>{profile.user?.first_name} {profile.user?.last_name}</h2>
-              <div className="status">{profile.freelancer_type === 'company' ? 'Компания' : 'Фрилансер'}</div>
-              <p>
-                <strong>Никнейм:</strong> {profile.user?.nickname}
-              </p>
-              <p>
-                <strong>Телефон:</strong> {profile.phone_number || 'не указан'}
-              </p>
-              <p>
-                <strong>Адрес:</strong> {[profile.country, profile.city, profile.street].filter(Boolean).join(', ') || 'не указан'} {profile.house || ''}
-              </p>
-              <div style={{ marginTop: '1rem' }}>
-                {profile.skill_details?.map((skill) => (
-                  <span key={skill.id} className="tag">
-                    {skill.name}
-                  </span>
-                ))}
-              </div>
-            </article>
-          ))}
+        <div className="people-grid">
+          {filteredProfiles.map((profile) => {
+            const name = [profile.user?.first_name, profile.user?.last_name].filter(Boolean).join(' ') ||
+              profile.user?.nickname;
+            const location = [profile.country, profile.city].filter(Boolean).join(', ');
+            return (
+              <article key={profile.id} className="person-card">
+                <div className="person-avatar" aria-hidden="true">
+                  {profile.avatar ? (
+                    <img src={resolveAvatar(profile.avatar)} alt={name} />
+                  ) : (
+                    <span>{name?.charAt(0) || '?'}</span>
+                  )}
+                </div>
+                <div className="person-info">
+                  <h2>{name}</h2>
+                  <p className="person-role">
+                    {profile.freelancer_type === 'company' ? 'Команда фрилансеров' : 'Индивидуальный специалист'}
+                  </p>
+                  {location && <p className="person-location">{location}</p>}
+                  <div className="person-skills">
+                    {profile.skill_details?.slice(0, 6).map((skill) => (
+                      <span key={skill.id} className="tag">
+                        {skill.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
     </div>
