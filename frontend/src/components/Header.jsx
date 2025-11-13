@@ -35,8 +35,8 @@ export default function Header() {
     if (role === 'client') {
       base.push({
         to: '/robots',
-        label: 'Роботы',
-        icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/robot-2.png',
+        label: 'Работы',
+        icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/task.png',
       });
     } else {
       base.push({
