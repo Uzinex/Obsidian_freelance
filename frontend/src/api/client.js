@@ -44,6 +44,36 @@ export async function upsertProfile(data, id) {
   return response.data;
 }
 
+export async function fetchNotifications(params = {}) {
+  const response = await apiClient.get('accounts/notifications/', { params });
+  return response.data;
+}
+
+export async function markNotificationRead(id) {
+  const response = await apiClient.post(`accounts/notifications/${id}/mark_read/`);
+  return response.data;
+}
+
+export async function markAllNotificationsRead() {
+  const response = await apiClient.post('accounts/notifications/mark_all_read/');
+  return response.data;
+}
+
+export async function fetchWallet(params = {}) {
+  const response = await apiClient.get('accounts/wallets/', { params });
+  return response.data;
+}
+
+export async function depositWallet(payload) {
+  const response = await apiClient.post('accounts/wallets/deposit/', payload);
+  return response.data;
+}
+
+export async function withdrawWallet(payload) {
+  const response = await apiClient.post('accounts/wallets/withdraw/', payload);
+  return response.data;
+}
+
 export async function fetchCategories() {
   const response = await apiClient.get('marketplace/categories/');
   return response.data;
@@ -71,6 +101,36 @@ export async function createOrder(payload) {
 
 export async function applyToOrder(payload) {
   const response = await apiClient.post('marketplace/applications/', payload);
+  return response.data;
+}
+
+export async function reviewApplication(id, action) {
+  const response = await apiClient.post(`marketplace/applications/${id}/${action}/`);
+  return response.data;
+}
+
+export async function fetchContracts(params = {}) {
+  const response = await apiClient.get('marketplace/contracts/', { params });
+  return response.data;
+}
+
+export async function signContract(id) {
+  const response = await apiClient.post(`marketplace/contracts/${id}/sign/`);
+  return response.data;
+}
+
+export async function completeContract(id) {
+  const response = await apiClient.post(`marketplace/contracts/${id}/complete/`);
+  return response.data;
+}
+
+export async function requestContractTermination(id, payload) {
+  const response = await apiClient.post(`marketplace/contracts/${id}/request_termination/`, payload);
+  return response.data;
+}
+
+export async function approveContractTermination(id) {
+  const response = await apiClient.post(`marketplace/contracts/${id}/approve_termination/`);
   return response.data;
 }
 

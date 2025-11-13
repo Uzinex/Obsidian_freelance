@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { fetchCategories, fetchOrders } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { formatCurrency } from '../utils/formatCurrency.js';
 
 const stats = [
   {
@@ -216,7 +217,8 @@ export default function HomePage() {
                 <div className="order-meta">
                   <span>Дедлайн: {new Date(order.deadline).toLocaleDateString()}</span>
                   <span>
-                    Бюджет: {order.payment_type === 'hourly' ? 'Почасовая оплата' : 'Фиксированная'} — {order.budget} сум
+                    Бюджет: {order.payment_type === 'hourly' ? 'Почасовая оплата' : 'Фиксированная'} —{' '}
+                    {formatCurrency(order.budget, order.currency)}
                   </span>
                 </div>
                 <div className="order-tags">

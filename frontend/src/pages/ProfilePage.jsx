@@ -7,9 +7,20 @@ import {
   upsertProfile,
   logout as logoutRequest,
   applyAuthToken,
+  fetchNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  fetchWallet,
+  depositWallet,
+  withdrawWallet,
+  fetchContracts,
+  signContract,
+  completeContract,
+  requestContractTermination,
 } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import SkillSelector from '../components/SkillSelector.jsx';
+import { formatCurrency } from '../utils/formatCurrency.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -71,6 +82,15 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
+  const [wallet, setWallet] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [contracts, setContracts] = useState([]);
+  const [walletMessage, setWalletMessage] = useState('');
+  const [walletError, setWalletError] = useState('');
+  const [depositAmount, setDepositAmount] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [contractMessage, setContractMessage] = useState('');
+  const [contractError, setContractError] = useState('');
   const profile = user?.profile;
   const profileDefaults = useMemo(() => getProfileFormDefaults(profile), [profile]);
 
@@ -104,6 +124,27 @@ export default function ProfilePage() {
     }
     loadData();
   }, [profile, token, user, login]);
+
+  useEffect(() => {
+    async function loadSupplementaryData() {
+      if (!token) return;
+      try {
+        const [walletData, notificationData, contractData] = await Promise.all([
+          fetchWallet({ limit: 10 }),
+          fetchNotifications(),
+          fetchContracts(),
+        ]);
+        setWallet(walletData);
+        const notificationList = notificationData.results || notificationData;
+        setNotifications(Array.isArray(notificationList) ? notificationList : []);
+        const contractList = contractData.results || contractData;
+        setContracts(Array.isArray(contractList) ? contractList : []);
+      } catch (supplementaryError) {
+        console.error('Не удалось загрузить финансовые данные', supplementaryError);
+      }
+    }
+    loadSupplementaryData();
+  }, [token, profile?.id]);
 
   useEffect(() => {
     return () => {
@@ -185,6 +226,107 @@ export default function ProfilePage() {
     logout();
   };
 
+  function extractErrorMessage(err, fallback) {
+    if (err?.response?.data?.detail) return err.response.data.detail;
+    if (Array.isArray(err?.response?.data?.non_field_errors)) {
+      return err.response.data.non_field_errors.join(' ');
+    }
+    if (err?.message) return err.message;
+    return fallback;
+  }
+
+  const refreshWallet = async () => {
+    const data = await fetchWallet({ limit: 10 });
+    setWallet(data);
+  };
+
+  const handleDeposit = async () => {
+    if (!depositAmount) return;
+    try {
+      setWalletError('');
+      setWalletMessage('');
+      await depositWallet({ amount: Number(depositAmount) });
+      await refreshWallet();
+      setDepositAmount('');
+      setWalletMessage('Кошелёк успешно пополнен.');
+    } catch (err) {
+      setWalletError(extractErrorMessage(err, 'Не удалось пополнить кошелёк.'));
+    }
+  };
+
+  const handleWithdraw = async () => {
+    if (!withdrawAmount) return;
+    try {
+      setWalletError('');
+      setWalletMessage('');
+      await withdrawWallet({ amount: Number(withdrawAmount) });
+      await refreshWallet();
+      setWithdrawAmount('');
+      setWalletMessage('Средства успешно списаны.');
+    } catch (err) {
+      setWalletError(extractErrorMessage(err, 'Не удалось выполнить списание.'));
+    }
+  };
+
+  const handleNotificationMark = async (id) => {
+    try {
+      const updated = await markNotificationRead(id);
+      setNotifications((prev) =>
+        prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)),
+      );
+    } catch (err) {
+      console.error('Не удалось отметить уведомление как прочитанное', err);
+    }
+  };
+
+  const handleNotificationMarkAll = async () => {
+    try {
+      await markAllNotificationsRead();
+      setNotifications((prev) => prev.map((item) => ({ ...item, is_read: true })));
+    } catch (err) {
+      console.error('Не удалось отметить все уведомления', err);
+    }
+  };
+
+  const handleContractSign = async (id) => {
+    try {
+      setContractError('');
+      setContractMessage('');
+      const updated = await signContract(id);
+      setContracts((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      setContractMessage('Контракт успешно подписан.');
+    } catch (err) {
+      setContractError(extractErrorMessage(err, 'Не удалось подписать контракт.'));
+    }
+  };
+
+  const handleContractComplete = async (id) => {
+    try {
+      setContractError('');
+      setContractMessage('');
+      const updated = await completeContract(id);
+      setContracts((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      setContractMessage('Заказ завершён и выплата отправлена.');
+      await refreshWallet();
+    } catch (err) {
+      setContractError(extractErrorMessage(err, 'Не удалось завершить контракт.'));
+    }
+  };
+
+  const handleContractTermination = async (id) => {
+    const reason = window.prompt('Укажите причину расторжения контракта');
+    if (!reason) return;
+    try {
+      setContractError('');
+      setContractMessage('');
+      const updated = await requestContractTermination(id, { reason });
+      setContracts((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      setContractMessage('Запрос на расторжение отправлен на рассмотрение.');
+    } catch (err) {
+      setContractError(extractErrorMessage(err, 'Не удалось отправить запрос на расторжение.'));
+    }
+  };
+
   if (loading) {
     return <div className="card">Загрузка...</div>;
   }
@@ -192,6 +334,7 @@ export default function ProfilePage() {
   const summarySkills = profile?.skill_details || [];
   const displayName = composeName(profile?.user || user);
   const roleLabel = roleOptions.find((option) => option.value === profile?.role)?.label;
+  const unreadNotifications = notifications.filter((item) => !item.is_read).length;
 
   return (
     <div className="profile-page">
@@ -287,6 +430,196 @@ export default function ProfilePage() {
 
       {message && <div className="alert success">{message}</div>}
       {error && <div className="alert">{error}</div>}
+
+      <section className="card wallet-card">
+        <div className="wallet-header">
+          <div>
+            <h2>Кошелёк</h2>
+            <p className="subtle">Управляйте балансом в узбекских сумах (UZS)</p>
+          </div>
+          <div className="wallet-balance">
+            {wallet ? formatCurrency(wallet.balance, wallet.currency) : '—'}
+          </div>
+        </div>
+        {walletMessage && <div className="alert success">{walletMessage}</div>}
+        {walletError && <div className="alert">{walletError}</div>}
+        <div className="wallet-actions">
+          <div className="wallet-action">
+            <label htmlFor="wallet-deposit">Пополнить кошелёк</label>
+            <div className="wallet-action-row">
+              <input
+                id="wallet-deposit"
+                type="number"
+                min="0"
+                step="0.01"
+                value={depositAmount}
+                onChange={(event) => setDepositAmount(event.target.value)}
+                placeholder="Введите сумму"
+              />
+              <button type="button" className="button primary" onClick={handleDeposit}>
+                Пополнить
+              </button>
+            </div>
+          </div>
+          <div className="wallet-action">
+            <label htmlFor="wallet-withdraw">Вывести средства</label>
+            <div className="wallet-action-row">
+              <input
+                id="wallet-withdraw"
+                type="number"
+                min="0"
+                step="0.01"
+                value={withdrawAmount}
+                onChange={(event) => setWithdrawAmount(event.target.value)}
+                placeholder="Введите сумму"
+              />
+              <button type="button" className="button secondary" onClick={handleWithdraw}>
+                Списать
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="wallet-transactions">
+          <h3>Последние операции</h3>
+          {wallet?.transactions?.length ? (
+            <ul>
+              {wallet.transactions.map((transaction) => {
+                const amount = Number(transaction.amount);
+                const formattedAmount = formatCurrency(Math.abs(amount), wallet.currency);
+                const sign = amount >= 0 ? '+' : '−';
+                return (
+                  <li key={transaction.id}>
+                    <div>
+                      <strong>{transaction.type}</strong>
+                      <span>{new Date(transaction.created_at).toLocaleString('ru-RU')}</span>
+                      {transaction.description && <p className="subtle">{transaction.description}</p>}
+                    </div>
+                    <div className="wallet-transaction-amount">
+                      <span className={amount >= 0 ? 'positive' : 'negative'}>
+                        {sign} {formattedAmount}
+                      </span>
+                      <small>Баланс: {formatCurrency(transaction.balance_after, wallet.currency)}</small>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="subtle">Операции кошелька пока отсутствуют.</p>
+          )}
+        </div>
+      </section>
+
+      <section className="card notifications-card">
+        <div className="notifications-header">
+          <h2>Уведомления</h2>
+          <button
+            type="button"
+            className="button ghost"
+            onClick={handleNotificationMarkAll}
+            disabled={!unreadNotifications}
+          >
+            Отметить все прочитанными
+          </button>
+        </div>
+        {notifications.length ? (
+          <ul className="notifications-list">
+            {notifications.map((item) => (
+              <li key={item.id} className={item.is_read ? 'read' : 'unread'}>
+                <div>
+                  <h3>{item.title}</h3>
+                  <p>{item.message}</p>
+                  <span className="notification-meta">
+                    {new Date(item.created_at).toLocaleString('ru-RU')}
+                  </span>
+                </div>
+                {!item.is_read && (
+                  <button
+                    type="button"
+                    className="button ghost"
+                    onClick={() => handleNotificationMark(item.id)}
+                  >
+                    Прочитано
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="subtle">Уведомлений пока нет.</p>
+        )}
+      </section>
+
+      <section className="card contracts-card">
+        <div className="contracts-header">
+          <h2>Контракты</h2>
+        </div>
+        {contractMessage && <div className="alert success">{contractMessage}</div>}
+        {contractError && <div className="alert">{contractError}</div>}
+        {contracts.length ? (
+          <ul className="contracts-list">
+            {contracts.map((contract) => {
+              const roleText = contract.user_role === 'client' ? 'Вы — заказчик' : 'Вы — исполнитель';
+              return (
+                <li key={contract.id} className={`contract-item status-${contract.status}`}>
+                  <header>
+                    <div>
+                      <h3>{contract.order_title}</h3>
+                      <p className="subtle">{roleText}</p>
+                    </div>
+                    <span className="contract-status">{contract.status_display}</span>
+                  </header>
+                  <p>
+                    <strong>Сумма:</strong> {formatCurrency(contract.budget_snapshot, contract.currency)}
+                  </p>
+                  <p>
+                    <strong>Подписание:</strong> заказчик —{' '}
+                    {contract.client_signed ? 'подписано' : 'ожидает'}, исполнитель —{' '}
+                    {contract.freelancer_signed ? 'подписано' : 'ожидает'}
+                  </p>
+                  {contract.termination_requested && (
+                    <p className="subtle">
+                      Запрос на расторжение: {contract.termination_requested_by === 'client' ? 'заказчик' : 'фрилансер'} —{' '}
+                      {contract.termination_reason || 'ожидает комментария'}
+                    </p>
+                  )}
+                  <div className="contract-actions">
+                    {contract.can_sign && (
+                      <button
+                        type="button"
+                        className="button primary"
+                        onClick={() => handleContractSign(contract.id)}
+                      >
+                        Подписать контракт
+                      </button>
+                    )}
+                    {contract.can_complete && (
+                      <button
+                        type="button"
+                        className="button secondary"
+                        onClick={() => handleContractComplete(contract.id)}
+                      >
+                        Завершить контракт
+                      </button>
+                    )}
+                    {contract.can_request_termination && (
+                      <button
+                        type="button"
+                        className="button ghost"
+                        onClick={() => handleContractTermination(contract.id)}
+                      >
+                        Расторгнуть контракт
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="subtle">У вас пока нет контрактов.</p>
+        )}
+      </section>
 
       {isEditing && (
         <section className="card profile-form-card">

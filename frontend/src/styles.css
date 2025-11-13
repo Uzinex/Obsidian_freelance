@@ -760,6 +760,134 @@ textarea:focus {
   object-fit: cover;
 }
 
+.wallet-card,
+.notifications-card,
+.contracts-card {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.wallet-header,
+.notifications-header,
+.contracts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.wallet-balance {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.wallet-actions {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.wallet-action label {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.wallet-action-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.wallet-action-row input {
+  margin-bottom: 0;
+}
+
+.wallet-transactions ul,
+.notifications-list,
+.contracts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.wallet-transactions li,
+.notifications-list li,
+.contracts-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(90, 24, 154, 0.12);
+  background: rgba(90, 24, 154, 0.04);
+}
+
+.wallet-transaction-amount {
+  text-align: right;
+}
+
+.wallet-transaction-amount span {
+  font-weight: 600;
+  display: block;
+}
+
+.wallet-transaction-amount .positive {
+  color: #0f9d58;
+}
+
+.wallet-transaction-amount .negative {
+  color: #d93025;
+}
+
+.wallet-transaction-amount small,
+.notification-meta {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.notifications-list li.unread {
+  background: rgba(90, 24, 154, 0.12);
+}
+
+.notifications-list h3 {
+  margin: 0 0 0.25rem;
+}
+
+.notifications-list p {
+  margin: 0 0 0.5rem;
+}
+
+.contract-item header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.contract-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(90, 24, 154, 0.15);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.contract-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.contract-actions .button {
+  padding: 0.5rem 1rem;
+}
+
 .person-info {
   flex: 1;
   display: grid;

@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from accounts.models import Profile
 from accounts.serializers import ProfileSerializer
-from .models import Category, Order, OrderApplication, Skill
+from .models import Category, Contract, Order, OrderApplication, Skill
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -47,6 +47,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "deadline",
             "payment_type",
             "budget",
+            "currency",
             "required_skills",
             "required_skill_details",
             "order_type",
@@ -56,7 +57,13 @@ class OrderSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("status", "created_at", "updated_at", "client")
+        read_only_fields = (
+            "status",
+            "created_at",
+            "updated_at",
+            "client",
+            "currency",
+        )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -87,6 +94,8 @@ class OrderApplicationSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False,
     )
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    contract = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderApplication
@@ -97,6 +106,8 @@ class OrderApplicationSerializer(serializers.ModelSerializer):
             "freelancer_id",
             "cover_letter",
             "status",
+            "status_display",
+            "contract",
             "created_at",
         )
         read_only_fields = ("status", "created_at", "freelancer")
@@ -131,3 +142,117 @@ class OrderApplicationSerializer(serializers.ModelSerializer):
                 )
 
         return attrs
+
+    def get_contract(self, obj: OrderApplication):
+        contract = obj.contracts.order_by("-created_at").first()
+        if contract is None:
+            return None
+        serializer = ContractSerializer(contract, context=self.context)
+        return serializer.data
+
+
+class ContractSerializer(serializers.ModelSerializer):
+    client = ProfileSerializer(read_only=True)
+    freelancer = ProfileSerializer(read_only=True)
+    order_id = serializers.IntegerField(source="order.id", read_only=True)
+    order_title = serializers.CharField(source="order.title", read_only=True)
+    application_id = serializers.IntegerField(source="application.id", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    user_role = serializers.SerializerMethodField()
+    client_signed = serializers.SerializerMethodField()
+    freelancer_signed = serializers.SerializerMethodField()
+    can_sign = serializers.SerializerMethodField()
+    can_complete = serializers.SerializerMethodField()
+    can_request_termination = serializers.SerializerMethodField()
+    termination_requested = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Contract
+        fields = (
+            "id",
+            "order_id",
+            "order_title",
+            "application_id",
+            "status",
+            "status_display",
+            "client",
+            "freelancer",
+            "budget_snapshot",
+            "currency",
+            "client_signed_at",
+            "freelancer_signed_at",
+            "signed_at",
+            "termination_requested_by",
+            "termination_reason",
+            "termination_requested_at",
+            "termination_approved_at",
+            "compensation_paid",
+            "user_role",
+            "client_signed",
+            "freelancer_signed",
+            "can_sign",
+            "can_complete",
+            "can_request_termination",
+            "termination_requested",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+    def _get_request_profile(self):
+        request = self.context.get("request")
+        if request is None or not request.user.is_authenticated:
+            return None
+        return getattr(request.user, "profile", None)
+
+    def get_user_role(self, obj: Contract):
+        profile = self._get_request_profile()
+        if profile is None:
+            return None
+        if obj.client_id == getattr(profile, "id", None):
+            return "client"
+        if obj.freelancer_id == getattr(profile, "id", None):
+            return "freelancer"
+        return None
+
+    def get_client_signed(self, obj: Contract) -> bool:
+        return bool(obj.client_signed_at)
+
+    def get_freelancer_signed(self, obj: Contract) -> bool:
+        return bool(obj.freelancer_signed_at)
+
+    def get_can_sign(self, obj: Contract) -> bool:
+        profile = self._get_request_profile()
+        if profile is None or obj.status != Contract.STATUS_PENDING:
+            return False
+        if obj.client_id == getattr(profile, "id", None):
+            return obj.client_signed_at is None
+        if obj.freelancer_id == getattr(profile, "id", None):
+            return obj.freelancer_signed_at is None
+        return False
+
+    def get_can_complete(self, obj: Contract) -> bool:
+        profile = self._get_request_profile()
+        if profile is None:
+            return False
+        return (
+            obj.status in {Contract.STATUS_ACTIVE, Contract.STATUS_TERMINATION_REQUESTED}
+            and obj.client_id == getattr(profile, "id", None)
+        )
+
+    def get_can_request_termination(self, obj: Contract) -> bool:
+        profile = self._get_request_profile()
+        if profile is None or obj.status not in {Contract.STATUS_ACTIVE, Contract.STATUS_PENDING}:
+            return False
+        if obj.status == Contract.STATUS_PENDING and (
+            obj.client_signed_at and obj.freelancer_signed_at
+        ):
+            return False
+        if obj.termination_requested_by:
+            return False
+        return obj.client_id == getattr(profile, "id", None) or obj.freelancer_id == getattr(
+            profile, "id", None
+        )
+
+    def get_termination_requested(self, obj: Contract) -> bool:
+        return obj.status == Contract.STATUS_TERMINATION_REQUESTED

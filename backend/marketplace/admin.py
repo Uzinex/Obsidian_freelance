@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Category, Order, OrderApplication, Skill
+from .models import Category, Contract, Order, OrderApplication, Skill
 
 
 @admin.register(Category)
@@ -44,3 +44,22 @@ class OrderApplicationAdmin(admin.ModelAdmin):
     list_display = ("order", "freelancer", "status", "created_at")
     list_filter = ("status",)
     search_fields = ("order__title", "freelancer__user__nickname")
+
+
+@admin.register(Contract)
+class ContractAdmin(admin.ModelAdmin):
+    list_display = (
+        "order",
+        "client",
+        "freelancer",
+        "status",
+        "budget_snapshot",
+        "currency",
+        "created_at",
+    )
+    list_filter = ("status", "currency")
+    search_fields = (
+        "order__title",
+        "client__user__nickname",
+        "freelancer__user__nickname",
+    )

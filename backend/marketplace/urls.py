@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     CategoryViewSet,
+    ContractViewSet,
     OrderApplicationViewSet,
     OrderViewSet,
     SkillViewSet,
@@ -13,6 +14,7 @@ router.register("categories", CategoryViewSet, basename="category")
 router.register("skills", SkillViewSet, basename="skill")
 router.register("orders", OrderViewSet, basename="order")
 router.register("applications", OrderApplicationViewSet, basename="application")
+router.register("contracts", ContractViewSet, basename="contract")
 
 urlpatterns = [
     path("", include(router.urls)),
