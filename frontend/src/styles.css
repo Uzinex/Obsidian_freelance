@@ -111,6 +111,10 @@ textarea:focus {
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
+.grid.four {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
 .tag {
   display: inline-flex;
   padding: 0.25rem 0.75rem;
@@ -623,6 +627,32 @@ textarea:focus {
   justify-self: center;
 }
 
+.about-stats .grid {
+  gap: 1rem;
+}
+
+.about-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1.5rem;
+  border-radius: 18px;
+  background: rgba(36, 0, 70, 0.06);
+  border: 1px solid rgba(36, 0, 70, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.about-stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-primary-dark);
+}
+
+.about-stat-label {
+  color: var(--color-muted);
+  line-height: 1.4;
+}
+
 .card.soft {
   background: rgba(255, 255, 255, 0.7);
   border: 1px solid rgba(90, 24, 154, 0.08);
@@ -650,6 +680,35 @@ textarea:focus {
 .timeline-year {
   font-weight: 700;
   color: var(--color-accent);
+}
+
+.about-approach {
+  display: grid;
+  gap: 1.75rem;
+}
+
+.about-approach .grid {
+  gap: 1.25rem;
+}
+
+.about-approach-item {
+  padding: 1.5rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(36, 0, 70, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  box-shadow: 0 12px 32px rgba(36, 0, 70, 0.08);
+}
+
+.about-approach-item h3 {
+  margin: 0;
+}
+
+.about-approach-item p {
+  color: var(--color-muted);
+  margin: 0;
 }
 
 .about-cta ul {
