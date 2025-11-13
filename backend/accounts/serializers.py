@@ -230,12 +230,15 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 class VerificationRequestSerializer(serializers.ModelSerializer):
     profile = serializers.PrimaryKeyRelatedField(queryset=Profile.objects.all())
+    profile_details = ProfileSerializer(source="profile", read_only=True)
+    reviewer = UserSerializer(source="reviewed_by", read_only=True)
 
     class Meta:
         model = VerificationRequest
         fields = (
             "id",
             "profile",
+            "profile_details",
             "document_type",
             "document_series",
             "document_number",
@@ -244,8 +247,30 @@ class VerificationRequestSerializer(serializers.ModelSerializer):
             "created_at",
             "reviewed_at",
             "reviewer_note",
+            "reviewer",
         )
-        read_only_fields = ("status", "created_at", "reviewed_at", "reviewer_note")
+        read_only_fields = (
+            "status",
+            "created_at",
+            "reviewed_at",
+            "reviewer_note",
+            "reviewer",
+            "profile_details",
+        )
+
+    def validate(self, attrs):
+        profile = attrs["profile"]
+        if profile.verification_requests.filter(
+            status=VerificationRequest.STATUS_PENDING
+        ).exists():
+            raise serializers.ValidationError(
+                {
+                    "non_field_errors": [
+                        "У вас уже есть заявка на рассмотрении. Дождитесь решения администратора.",
+                    ]
+                }
+            )
+        return attrs
 
     def create(self, validated_data):
         profile = validated_data["profile"]

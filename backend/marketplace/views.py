@@ -1,6 +1,7 @@
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from rest_framework import filters, permissions, serializers, viewsets
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -71,6 +72,8 @@ class OrderViewSet(viewsets.ModelViewSet):
             raise permissions.PermissionDenied(
                 "Only clients can publish orders."
             )
+        if not profile.is_verified:
+            raise PermissionDenied("Ваша заявка на верификацию ещё не одобрена.")
         serializer.save(client=profile)
 
     @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny])
@@ -85,6 +88,8 @@ class OrderViewSet(viewsets.ModelViewSet):
         )
         if serializer.instance.client != profile:
             raise permissions.PermissionDenied("You can only update your own orders.")
+        if not profile.is_verified:
+            raise PermissionDenied("Ваша заявка на верификацию ещё не одобрена.")
         serializer.save()
 
     def perform_destroy(self, instance):
@@ -93,6 +98,8 @@ class OrderViewSet(viewsets.ModelViewSet):
         )
         if instance.client != profile:
             raise permissions.PermissionDenied("You can only delete your own orders.")
+        if not profile.is_verified:
+            raise PermissionDenied("Ваша заявка на верификацию ещё не одобрена.")
         instance.delete()
 
 
@@ -116,6 +123,8 @@ class OrderApplicationViewSet(viewsets.ModelViewSet):
         profile, _created = Profile.objects.get_or_create(user=self.request.user)
         if profile.role != Profile.ROLE_FREELANCER:
             raise permissions.PermissionDenied("Only freelancers can apply to orders.")
+        if not profile.is_verified:
+            raise PermissionDenied("Для отклика необходимо пройти верификацию.")
         order = self._get_order()
         if OrderApplication.objects.filter(order=order, freelancer=profile).exists():
             raise serializers.ValidationError(

@@ -163,3 +163,7 @@ CORS_ALLOW_CREDENTIALS = True
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+VERIFICATION_ADMIN_EMAIL = os.getenv(
+    "VERIFICATION_ADMIN_EMAIL", "fdilov1@gmail.com"
+)

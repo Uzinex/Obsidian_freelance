@@ -130,6 +130,13 @@ class VerificationRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(blank=True, null=True)
     reviewer_note = models.TextField(blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_verifications",
+        blank=True,
+        null=True,
+    )
 
     class Meta:
         ordering = ["-created_at"]

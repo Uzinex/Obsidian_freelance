@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.utils import timezone
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
@@ -5,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Profile, VerificationRequest
+from .permissions import IsVerificationAdmin
 from .serializers import (
     LoginSerializer,
     ProfileSerializer,
@@ -87,16 +90,82 @@ class ProfileViewSet(viewsets.ModelViewSet):
 class VerificationRequestViewSet(viewsets.ModelViewSet):
     serializer_class = VerificationRequestSerializer
     permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["get", "post", "head", "options"]
 
     def get_queryset(self):
-        if self.request.user.is_staff:
-            return VerificationRequest.objects.select_related("profile", "profile__user")
+        user = self.request.user
+        admin_email = getattr(settings, "VERIFICATION_ADMIN_EMAIL", "").lower()
+        if (
+            user.is_authenticated
+            and user.is_staff
+            and user.email.lower() == admin_email
+        ):
+            return VerificationRequest.objects.select_related(
+                "profile", "profile__user", "reviewed_by"
+            )
         return VerificationRequest.objects.filter(
-            profile__user=self.request.user
-        ).select_related("profile", "profile__user")
+            profile__user=user
+        ).select_related("profile", "profile__user", "reviewed_by")
+
+    def get_permissions(self):
+        if self.action in {"approve", "reject"}:
+            return [permissions.IsAuthenticated(), IsVerificationAdmin()]
+        return super().get_permissions()
 
     def perform_create(self, serializer):
         profile = serializer.validated_data.get("profile")
         if profile.user != self.request.user:
             raise permissions.PermissionDenied("You can only verify your own profile.")
         serializer.save()
+
+    @action(detail=True, methods=["post"], permission_classes=[IsVerificationAdmin])
+    def approve(self, request, pk=None):
+        verification = self.get_object()
+        if verification.status != VerificationRequest.STATUS_PENDING:
+            return Response(
+                {"detail": "Заявка уже обработана."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        note = request.data.get("note", "")
+        verification.status = VerificationRequest.STATUS_APPROVED
+        verification.reviewed_at = timezone.now()
+        verification.reviewer_note = note
+        verification.reviewed_by = request.user
+        verification.save(update_fields=[
+            "status",
+            "reviewed_at",
+            "reviewer_note",
+            "reviewed_by",
+        ])
+        profile = verification.profile
+        if not profile.is_verified:
+            profile.is_verified = True
+            profile.save(update_fields=["is_verified"])
+        serializer = self.get_serializer(verification)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsVerificationAdmin])
+    def reject(self, request, pk=None):
+        verification = self.get_object()
+        if verification.status != VerificationRequest.STATUS_PENDING:
+            return Response(
+                {"detail": "Заявка уже обработана."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        note = request.data.get("note", "")
+        verification.status = VerificationRequest.STATUS_REJECTED
+        verification.reviewed_at = timezone.now()
+        verification.reviewer_note = note
+        verification.reviewed_by = request.user
+        verification.save(update_fields=[
+            "status",
+            "reviewed_at",
+            "reviewer_note",
+            "reviewed_by",
+        ])
+        profile = verification.profile
+        if profile.is_verified:
+            profile.is_verified = False
+            profile.save(update_fields=["is_verified"])
+        serializer = self.get_serializer(verification)
+        return Response(serializer.data)

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { createOrder, fetchSkills } from '../api/client.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import SkillSelector from '../components/SkillSelector.jsx';
 
 const paymentTypes = [
@@ -25,6 +26,7 @@ const deadlineUnits = [
 ];
 
 export default function CreateOrderPage() {
+  const { user } = useAuth();
   const {
     register,
     handleSubmit,
@@ -104,6 +106,20 @@ export default function CreateOrderPage() {
     } catch (err) {
       setError('Не удалось создать заказ. Проверьте введённые данные.');
     }
+  }
+
+  if (!user?.profile?.is_verified) {
+    return (
+      <div className="card" style={{ maxWidth: '640px', margin: '0 auto' }}>
+        <h1>Публикация заказов доступна только верифицированным клиентам</h1>
+        <p style={{ marginBottom: '1rem' }}>
+          Пройдите процедуру проверки документов, чтобы размещать новые проекты и управлять ими.
+        </p>
+        <Link className="button primary" to="/verification">
+          Перейти к верификации
+        </Link>
+      </div>
+    );
   }
 
   return (
