@@ -205,6 +205,9 @@ class ProfileSerializer(serializers.ModelSerializer):
         for field in self.NULLABLE_STRING_FIELDS:
             if mutable_data.get(field, serializers.empty) is None:
                 mutable_data[field] = ""
+        company_registered_as = mutable_data.get("company_registered_as", serializers.empty)
+        if company_registered_as in {None, ""}:
+            mutable_data["company_registered_as"] = Profile.REGISTRATION_TYPE_NONE
         return super().to_internal_value(mutable_data)
 
     def to_representation(self, instance):
