@@ -164,7 +164,13 @@ class ProfileSerializer(serializers.ModelSerializer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["skills"].queryset = Skill.objects.all()
+        skills_field = self.fields.get("skills")
+        if skills_field is not None:
+            skills_queryset = Skill.objects.all()
+            if hasattr(skills_field, "child_relation"):
+                skills_field.child_relation.queryset = skills_queryset
+            else:  # pragma: no cover - fallback for unexpected field types
+                skills_field.queryset = skills_queryset
 
     def create(self, validated_data):
         request = self.context.get("request")
