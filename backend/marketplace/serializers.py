@@ -100,6 +100,7 @@ class OrderApplicationSerializer(serializers.ModelSerializer):
             "created_at",
         )
         read_only_fields = ("status", "created_at", "freelancer")
+        validators = []
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -111,3 +112,22 @@ class OrderApplicationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         return super().create(validated_data)
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        freelancer = attrs.get("freelancer")
+        if freelancer is None and request is not None and request.user.is_authenticated:
+            freelancer = getattr(request.user, "profile", None)
+
+        order = attrs.get("order")
+        if order is not None and freelancer is not None:
+            if OrderApplication.objects.filter(order=order, freelancer=freelancer).exists():
+                raise serializers.ValidationError(
+                    {
+                        "non_field_errors": [
+                            "You have already applied to this order.",
+                        ]
+                    }
+                )
+
+        return attrs

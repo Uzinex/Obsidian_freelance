@@ -1,6 +1,6 @@
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
-from rest_framework import filters, permissions, viewsets
+from rest_framework import filters, permissions, serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -116,7 +116,16 @@ class OrderApplicationViewSet(viewsets.ModelViewSet):
         profile, _created = Profile.objects.get_or_create(user=self.request.user)
         if profile.role != Profile.ROLE_FREELANCER:
             raise permissions.PermissionDenied("Only freelancers can apply to orders.")
-        serializer.save(order=self._get_order(), freelancer=profile)
+        order = self._get_order()
+        if OrderApplication.objects.filter(order=order, freelancer=profile).exists():
+            raise serializers.ValidationError(
+                {
+                    "non_field_errors": [
+                        "You have already applied to this order.",
+                    ]
+                }
+            )
+        serializer.save(order=order, freelancer=profile)
 
     def _get_order(self):
         order_id = self.request.data.get("order")
