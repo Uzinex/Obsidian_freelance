@@ -80,3 +80,16 @@ export async function submitVerification(payload) {
   });
   return response.data;
 }
+
+export async function fetchVerificationRequests(params = {}) {
+  const response = await apiClient.get('accounts/verifications/', { params });
+  return response.data;
+}
+
+export async function reviewVerificationRequest(id, action, payload = {}) {
+  const response = await apiClient.post(
+    `accounts/verifications/${id}/${action}/`,
+    payload,
+  );
+  return response.data;
+}

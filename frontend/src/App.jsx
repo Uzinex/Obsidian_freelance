@@ -14,6 +14,7 @@ import OrderDetailPage from './pages/OrderDetailPage.jsx';
 import CreateOrderPage from './pages/CreateOrderPage.jsx';
 import FreelancersPage from './pages/FreelancersPage.jsx';
 import VerificationPage from './pages/VerificationPage.jsx';
+import VerificationRequestsPage from './pages/VerificationRequestsPage.jsx';
 import AboutPage from './pages/AboutPage.jsx';
 
 export default function App() {
@@ -57,8 +58,11 @@ export default function App() {
           </Route>
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/orders/:orderId" element={<OrderDetailPage />} />
-          <Route element={<ProtectedRoute role="client" />}>
+          <Route element={<ProtectedRoute role="client" requireVerified />}>
             <Route path="/orders/create" element={<CreateOrderPage />} />
+          </Route>
+          <Route element={<ProtectedRoute requireAdmin />}>
+            <Route path="/verification/requests" element={<VerificationRequestsPage />} />
           </Route>
           <Route path="/freelancers" element={<FreelancersPage />} />
         </Routes>

@@ -3,6 +3,8 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 const AuthContext = createContext(null);
 
 const STORAGE_KEY = 'obsidian_freelance_auth';
+const VERIFICATION_ADMIN_EMAIL =
+  import.meta.env.VITE_VERIFICATION_ADMIN_EMAIL?.toLowerCase() || 'fdilov1@gmail.com';
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
@@ -40,9 +42,21 @@ export function AuthProvider({ children }) {
     localStorage.removeItem(STORAGE_KEY);
   };
 
+  const isVerificationAdmin = useMemo(() => {
+    return (user?.email || '').toLowerCase() === VERIFICATION_ADMIN_EMAIL;
+  }, [user]);
+
   const value = useMemo(
-    () => ({ token, user, login, logout, loading, isAuthenticated: Boolean(token) }),
-    [token, user, loading],
+    () => ({
+      token,
+      user,
+      login,
+      logout,
+      loading,
+      isAuthenticated: Boolean(token),
+      isVerificationAdmin,
+    }),
+    [token, user, loading, isVerificationAdmin],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

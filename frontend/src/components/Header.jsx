@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { logout as logoutRequest, applyAuthToken } from '../api/client.js';
 
 export default function Header() {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, logout, isVerificationAdmin } = useAuth();
 
   const handleLogout = async () => {
     try {
@@ -48,10 +48,24 @@ export default function Header() {
         label: 'Профиль',
         icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/user-male-circle.png',
       });
+      if (user?.profile && !user.profile.is_verified) {
+        base.push({
+          to: '/verification',
+          label: 'Верификация',
+          icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/approval.png',
+        });
+      }
+      if (isVerificationAdmin) {
+        base.push({
+          to: '/verification/requests',
+          label: 'Заявки',
+          icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/clipboard-list.png',
+        });
+      }
     }
 
     return base;
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isVerificationAdmin, user]);
 
   return (
     <header className="header">

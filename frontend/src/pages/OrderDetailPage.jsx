@@ -23,10 +23,15 @@ export default function OrderDetailPage() {
   }, [orderId]);
 
   const isFreelancer = user?.profile?.role === 'freelancer';
+  const isVerified = Boolean(user?.profile?.is_verified);
 
   async function handleApply() {
     if (!isFreelancer) {
       setError('Только фрилансеры могут откликаться на заказы.');
+      return;
+    }
+    if (!isVerified) {
+      setError('Для отклика необходимо пройти верификацию.');
       return;
     }
     try {
@@ -71,8 +76,13 @@ export default function OrderDetailPage() {
       {message && <div className="alert success">{message}</div>}
       {error && <div className="alert">{error}</div>}
       {isFreelancer && (
-        <button className="button primary" type="button" onClick={handleApply}>
-          Откликнуться
+        <button
+          className="button primary"
+          type="button"
+          onClick={handleApply}
+          disabled={!isVerified}
+        >
+          {isVerified ? 'Откликнуться' : 'Требуется верификация'}
         </button>
       )}
     </div>
