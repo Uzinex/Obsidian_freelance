@@ -1,4 +1,6 @@
 from django.conf import settings
+from decimal import Decimal
+
 from django.utils import timezone
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.authtoken.models import Token
@@ -6,15 +8,18 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Profile, VerificationRequest
+from .models import Notification, Profile, VerificationRequest, Wallet
 from .permissions import IsVerificationAdmin
 from .serializers import (
     LoginSerializer,
+    NotificationSerializer,
     ProfileSerializer,
     RegistrationSerializer,
     UserSerializer,
     VerificationRequestSerializer,
+    WalletSerializer,
 )
+from .utils import create_notification
 
 
 class RegisterView(generics.CreateAPIView):
@@ -54,7 +59,11 @@ class LogoutView(APIView):
 class ProfileViewSet(viewsets.ModelViewSet):
     serializer_class = ProfileSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    queryset = Profile.objects.select_related("user").prefetch_related("skills")
+    queryset = (
+        Profile.objects.select_related("user", "wallet")
+        .prefetch_related("skills")
+        .all()
+    )
 
     def get_queryset(self):
         queryset = self.queryset
@@ -84,6 +93,106 @@ class ProfileViewSet(viewsets.ModelViewSet):
             defaults={"role": Profile.ROLE_CLIENT},
         )
         serializer = self.get_serializer(profile)
+        return Response(serializer.data)
+
+
+class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = NotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Notification.objects.filter(
+            profile__user=self.request.user
+        ).order_by("-created_at")
+
+    @action(detail=True, methods=["post"])
+    def mark_read(self, request, pk=None):
+        notification = self.get_object()
+        notification.mark_as_read()
+        serializer = self.get_serializer(notification)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["post"])
+    def mark_all_read(self, request):
+        queryset = self.get_queryset().filter(is_read=False)
+        updated = queryset.update(is_read=True, read_at=timezone.now())
+        return Response({"updated": updated})
+
+
+class WalletViewSet(viewsets.GenericViewSet):
+    serializer_class = WalletSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):  # pragma: no cover - not used but required by router
+        return Wallet.objects.filter(profile__user=self.request.user)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        limit = self.request.query_params.get("limit")
+        if limit is not None:
+            try:
+                context["transaction_limit"] = max(1, int(limit))
+            except (TypeError, ValueError):  # pragma: no cover - defensive
+                pass
+        return context
+
+    def _get_profile(self) -> Profile:
+        profile, _ = Profile.objects.get_or_create(
+            user=self.request.user,
+            defaults={"role": Profile.ROLE_CLIENT},
+        )
+        return profile
+
+    def _get_wallet(self) -> Wallet:
+        profile = self._get_profile()
+        wallet, _ = Wallet.objects.get_or_create(profile=profile)
+        return wallet
+
+    def list(self, request, *args, **kwargs):
+        wallet = self._get_wallet()
+        serializer = self.get_serializer(wallet)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["post"])
+    def deposit(self, request):
+        wallet = self._get_wallet()
+        amount = request.data.get("amount", "0")
+        description = request.data.get("description", "Пополнение кошелька")
+        try:
+            amount_decimal = Decimal(str(amount))
+            wallet.deposit(amount_decimal, description=description)
+        except (ValueError, ArithmeticError) as exc:
+            return Response(
+                {"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST
+            )
+        create_notification(
+            wallet.profile,
+            title="Пополнение кошелька",
+            message=f"На ваш баланс зачислено {amount_decimal} {wallet.currency}.",
+            category=Notification.CATEGORY_FINANCE,
+        )
+        serializer = self.get_serializer(wallet)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["post"])
+    def withdraw(self, request):
+        wallet = self._get_wallet()
+        amount = request.data.get("amount", "0")
+        description = request.data.get("description", "Списание средств")
+        try:
+            amount_decimal = Decimal(str(amount))
+            wallet.withdraw(amount_decimal, description=description)
+        except (ValueError, ArithmeticError) as exc:
+            return Response(
+                {"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST
+            )
+        create_notification(
+            wallet.profile,
+            title="Списание с кошелька",
+            message=f"С вашего баланса списано {amount_decimal} {wallet.currency}.",
+            category=Notification.CATEGORY_FINANCE,
+        )
+        serializer = self.get_serializer(wallet)
         return Response(serializer.data)
 
 
@@ -141,6 +250,12 @@ class VerificationRequestViewSet(viewsets.ModelViewSet):
         if not profile.is_verified:
             profile.is_verified = True
             profile.save(update_fields=["is_verified"])
+        create_notification(
+            profile,
+            title="Верификация одобрена",
+            message="Администратор подтвердил вашу заявку на верификацию профиля.",
+            category=Notification.CATEGORY_VERIFICATION,
+        )
         serializer = self.get_serializer(verification)
         return Response(serializer.data)
 
@@ -167,5 +282,11 @@ class VerificationRequestViewSet(viewsets.ModelViewSet):
         if profile.is_verified:
             profile.is_verified = False
             profile.save(update_fields=["is_verified"])
+        create_notification(
+            profile,
+            title="Верификация отклонена",
+            message="Администратор отклонил заявку на верификацию. Проверьте комментарий и подайте новую заявку.",
+            category=Notification.CATEGORY_VERIFICATION,
+        )
         serializer = self.get_serializer(verification)
         return Response(serializer.data)

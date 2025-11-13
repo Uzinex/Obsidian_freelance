@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { applyToOrder, fetchOrder } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { formatCurrency } from '../utils/formatCurrency.js';
 
 export default function OrderDetailPage() {
   const { orderId } = useParams();
@@ -54,7 +55,8 @@ export default function OrderDetailPage() {
       <div className="status">Статус: {order.status}</div>
       <p>{order.description}</p>
       <div style={{ margin: '1rem 0' }}>
-        <strong>Оплата:</strong> {order.payment_type === 'hourly' ? 'Почасовая' : 'Фиксированная'} — {order.budget} сум
+        <strong>Оплата:</strong> {order.payment_type === 'hourly' ? 'Почасовая' : 'Фиксированная'} —{' '}
+        {formatCurrency(order.budget, order.currency)}
       </div>
       <div className="status">Дедлайн: {new Date(order.deadline).toLocaleString()}</div>
       <div style={{ margin: '1rem 0' }}>

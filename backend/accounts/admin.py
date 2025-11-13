@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import Profile, User, VerificationRequest
+from .models import Notification, Profile, User, VerificationRequest, Wallet, WalletTransaction
 
 
 @admin.register(User)
@@ -94,3 +94,29 @@ class VerificationRequestAdmin(admin.ModelAdmin):
         "document_series",
         "document_number",
     )
+
+
+@admin.register(Wallet)
+class WalletAdmin(admin.ModelAdmin):
+    list_display = ("profile", "balance", "currency")
+    search_fields = ("profile__user__nickname",)
+
+
+@admin.register(WalletTransaction)
+class WalletTransactionAdmin(admin.ModelAdmin):
+    list_display = (
+        "wallet",
+        "amount",
+        "balance_after",
+        "type",
+        "created_at",
+    )
+    list_filter = ("type", "created_at")
+    search_fields = ("wallet__profile__user__nickname",)
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ("profile", "title", "category", "is_read", "created_at")
+    list_filter = ("category", "is_read")
+    search_fields = ("profile__user__nickname", "title", "message")

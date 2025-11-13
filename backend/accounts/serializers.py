@@ -3,13 +3,21 @@ from datetime import date
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import models
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 
 from marketplace.models import Skill
 
-from .models import Profile, User, VerificationRequest
+from .models import (
+    Notification,
+    Profile,
+    User,
+    VerificationRequest,
+    Wallet,
+    WalletTransaction,
+)
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -116,6 +124,8 @@ class ProfileSerializer(serializers.ModelSerializer):
     skills = serializers.PrimaryKeyRelatedField(
         many=True, required=False, queryset=Skill.objects.none()
     )
+    wallet = serializers.SerializerMethodField()
+    contracts = serializers.SerializerMethodField()
     NULLABLE_STRING_FIELDS = {
         "freelancer_type",
         "company_name",
@@ -152,6 +162,8 @@ class ProfileSerializer(serializers.ModelSerializer):
             "house",
             "is_completed",
             "is_verified",
+            "wallet",
+            "contracts",
             "created_at",
             "updated_at",
         )
@@ -160,6 +172,8 @@ class ProfileSerializer(serializers.ModelSerializer):
             "is_verified",
             "created_at",
             "updated_at",
+            "wallet",
+            "contracts",
         )
 
     def __init__(self, *args, **kwargs):
@@ -226,6 +240,99 @@ class ProfileSerializer(serializers.ModelSerializer):
         else:
             data["skill_details"] = []
         return data
+
+    def get_wallet(self, instance: Profile):
+        wallet: Wallet | None = getattr(instance, "wallet", None)
+        if wallet is None:
+            return None
+        serializer = WalletSerializer(wallet, context=self.context)
+        return serializer.data
+
+    def get_contracts(self, instance: Profile):
+        from marketplace.models import Contract
+
+        request = self.context.get("request")
+        contracts = Contract.objects.filter(
+            models.Q(client=instance) | models.Q(freelancer=instance)
+        ).select_related("order")
+        summary = []
+        for contract in contracts:
+            role = "client" if contract.client_id == instance.id else "freelancer"
+            summary.append(
+                {
+                    "id": contract.id,
+                    "order_id": contract.order_id,
+                    "order_title": contract.order.title,
+                    "status": contract.status,
+                    "budget": str(contract.budget_snapshot),
+                    "currency": contract.currency,
+                    "role": role,
+                    "client_signed_at": contract.client_signed_at,
+                    "freelancer_signed_at": contract.freelancer_signed_at,
+                    "signed_at": contract.signed_at,
+                    "termination_requested_by": contract.termination_requested_by,
+                    "termination_reason": contract.termination_reason,
+                    "termination_requested_at": contract.termination_requested_at,
+                }
+            )
+        if request is not None:
+            # Ensure datetimes are rendered using DRF settings
+            dt_field = serializers.DateTimeField()
+            for item in summary:
+                for key in (
+                    "client_signed_at",
+                    "freelancer_signed_at",
+                    "signed_at",
+                    "termination_requested_at",
+                ):
+                    if item[key] is not None:
+                        item[key] = dt_field.to_representation(item[key])
+        return summary
+
+
+class WalletTransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WalletTransaction
+        fields = (
+            "id",
+            "amount",
+            "balance_after",
+            "type",
+            "description",
+            "created_at",
+            "related_contract",
+        )
+        read_only_fields = fields
+
+
+class WalletSerializer(serializers.ModelSerializer):
+    transactions = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Wallet
+        fields = ("id", "balance", "currency", "transactions")
+        read_only_fields = fields
+
+    def get_transactions(self, obj: Wallet):
+        limit = self.context.get("transaction_limit", 10)
+        queryset = obj.transactions.all()[:limit]
+        return WalletTransactionSerializer(queryset, many=True).data
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = (
+            "id",
+            "title",
+            "message",
+            "category",
+            "data",
+            "is_read",
+            "created_at",
+            "read_at",
+        )
+        read_only_fields = fields
 
 
 class VerificationRequestSerializer(serializers.ModelSerializer):

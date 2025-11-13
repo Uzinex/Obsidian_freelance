@@ -1,7 +1,12 @@
+from __future__ import annotations
+
+from decimal import Decimal
+
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator
-from django.db import models
+from django.db import models, transaction
+from django.utils import timezone
 
 
 class User(AbstractUser):
@@ -96,6 +101,196 @@ class Profile(models.Model):
     @property
     def display_role(self) -> str:
         return dict(self.ROLE_CHOICES).get(self.role, self.role)
+
+
+class Wallet(models.Model):
+    """Simple wallet model that stores the balance in Uzbek sums."""
+
+    CURRENCY_UZS = "UZS"
+
+    profile = models.OneToOneField(
+        Profile, on_delete=models.CASCADE, related_name="wallet"
+    )
+    balance = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal("0.00")
+    )
+    currency = models.CharField(max_length=10, default=CURRENCY_UZS)
+
+    class Meta:
+        ordering = ["profile__user__nickname"]
+
+    def __str__(self) -> str:  # pragma: no cover - simple data representation
+        return f"Wallet({self.profile.user.nickname}: {self.balance} {self.currency})"
+
+    def _apply_change(
+        self,
+        amount: Decimal,
+        *,
+        transaction_type: str,
+        description: str = "",
+        related_contract: "marketplace.Contract" | None = None,
+    ) -> "WalletTransaction":
+        if amount == 0:
+            raise ValueError("Amount must be non-zero for wallet operations")
+        with transaction.atomic():
+            wallet = Wallet.objects.select_for_update().get(pk=self.pk)
+            new_balance = wallet.balance + amount
+            if new_balance < Decimal("0.00"):
+                raise ValueError("Insufficient funds in wallet")
+            wallet.balance = new_balance
+            wallet.save(update_fields=["balance"])
+            transaction_record = wallet.transactions.create(
+                amount=amount,
+                balance_after=new_balance,
+                type=transaction_type,
+                description=description,
+                related_contract=related_contract,
+            )
+        self.refresh_from_db(fields=["balance"])
+        return transaction_record
+
+    def deposit(
+        self,
+        amount: Decimal,
+        *,
+        description: str = "",
+        related_contract: "marketplace.Contract" | None = None,
+    ) -> "WalletTransaction":
+        amount = Decimal(amount)
+        if amount <= 0:
+            raise ValueError("Deposit amount must be greater than zero")
+        return self._apply_change(
+            amount,
+            transaction_type=WalletTransaction.TYPE_DEPOSIT,
+            description=description,
+            related_contract=related_contract,
+        )
+
+    def withdraw(
+        self,
+        amount: Decimal,
+        *,
+        description: str = "",
+        related_contract: "marketplace.Contract" | None = None,
+    ) -> "WalletTransaction":
+        amount = Decimal(amount)
+        if amount <= 0:
+            raise ValueError("Withdrawal amount must be greater than zero")
+        return self._apply_change(
+            -amount,
+            transaction_type=WalletTransaction.TYPE_WITHDRAW,
+            description=description,
+            related_contract=related_contract,
+        )
+
+    def transfer_to(
+        self,
+        target: "Wallet",
+        amount: Decimal,
+        *,
+        description: str = "",
+        related_contract: "marketplace.Contract" | None = None,
+        outgoing_type: str | None = None,
+        incoming_type: str | None = None,
+    ) -> tuple["WalletTransaction", "WalletTransaction"]:
+        amount = Decimal(amount)
+        if amount <= 0:
+            raise ValueError("Transfer amount must be greater than zero")
+        outgoing_type = outgoing_type or WalletTransaction.TYPE_TRANSFER_OUT
+        incoming_type = incoming_type or WalletTransaction.TYPE_TRANSFER_IN
+        with transaction.atomic():
+            outgoing = self._apply_change(
+                -amount,
+                transaction_type=outgoing_type,
+                description=description,
+                related_contract=related_contract,
+            )
+            incoming = target._apply_change(
+                amount,
+                transaction_type=incoming_type,
+                description=description,
+                related_contract=related_contract,
+            )
+        return outgoing, incoming
+
+
+class WalletTransaction(models.Model):
+    TYPE_DEPOSIT = "deposit"
+    TYPE_WITHDRAW = "withdraw"
+    TYPE_TRANSFER_IN = "transfer_in"
+    TYPE_TRANSFER_OUT = "transfer_out"
+    TYPE_PAYOUT = "payout"
+    TYPE_COMPENSATION = "compensation"
+    TYPE_CHOICES = [
+        (TYPE_DEPOSIT, "Deposit"),
+        (TYPE_WITHDRAW, "Withdraw"),
+        (TYPE_TRANSFER_IN, "Incoming transfer"),
+        (TYPE_TRANSFER_OUT, "Outgoing transfer"),
+        (TYPE_PAYOUT, "Contract payout"),
+        (TYPE_COMPENSATION, "Contract compensation"),
+    ]
+
+    wallet = models.ForeignKey(
+        Wallet, on_delete=models.CASCADE, related_name="transactions"
+    )
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    balance_after = models.DecimalField(max_digits=14, decimal_places=2)
+    type = models.CharField(max_length=32, choices=TYPE_CHOICES)
+    description = models.CharField(max_length=255, blank=True)
+    related_contract = models.ForeignKey(
+        "marketplace.Contract",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="wallet_transactions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:  # pragma: no cover - simple data representation
+        return f"{self.wallet.profile.user.nickname}: {self.amount} ({self.type})"
+
+
+class Notification(models.Model):
+    CATEGORY_APPLICATION = "application"
+    CATEGORY_CONTRACT = "contract"
+    CATEGORY_VERIFICATION = "verification"
+    CATEGORY_FINANCE = "finance"
+    CATEGORY_GENERAL = "general"
+    CATEGORY_CHOICES = [
+        (CATEGORY_APPLICATION, "Order application"),
+        (CATEGORY_CONTRACT, "Contract"),
+        (CATEGORY_VERIFICATION, "Verification"),
+        (CATEGORY_FINANCE, "Finance"),
+        (CATEGORY_GENERAL, "General"),
+    ]
+
+    profile = models.ForeignKey(
+        Profile, on_delete=models.CASCADE, related_name="notifications"
+    )
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    category = models.CharField(
+        max_length=32, choices=CATEGORY_CHOICES, default=CATEGORY_GENERAL
+    )
+    data = models.JSONField(blank=True, default=dict)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    read_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def mark_as_read(self) -> None:
+        if not self.is_read:
+            self.is_read = True
+            self.read_at = timezone.now()
+            self.save(update_fields=["is_read", "read_at"])
+
+    def __str__(self) -> str:  # pragma: no cover - simple data representation
+        return f"Notification({self.profile.user.nickname}: {self.title})"
 
 
 class VerificationRequest(models.Model):
