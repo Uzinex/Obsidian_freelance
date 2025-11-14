@@ -1,18 +1,33 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import sentryVitePlugin from '@sentry/vite-plugin';
+import { createRequire } from 'module';
 
-const sentryPlugin =
-  process.env.SENTRY_ORG && process.env.SENTRY_PROJECT && process.env.SENTRY_AUTH_TOKEN
-    ? [
-        sentryVitePlugin({
-          org: process.env.SENTRY_ORG,
-          project: process.env.SENTRY_PROJECT,
-          authToken: process.env.SENTRY_AUTH_TOKEN,
-          telemetry: false,
-        }),
-      ]
-    : [];
+const require = createRequire(import.meta.url);
+
+let sentryVitePlugin;
+try {
+  ({ default: sentryVitePlugin } = require('@sentry/vite-plugin'));
+} catch (error) {
+  if (error.code !== 'MODULE_NOT_FOUND') {
+    throw error;
+  }
+}
+
+const hasSentryConfig =
+  Boolean(process.env.SENTRY_ORG) &&
+  Boolean(process.env.SENTRY_PROJECT) &&
+  Boolean(process.env.SENTRY_AUTH_TOKEN);
+
+const sentryPlugin = hasSentryConfig && sentryVitePlugin
+  ? [
+      sentryVitePlugin({
+        org: process.env.SENTRY_ORG,
+        project: process.env.SENTRY_PROJECT,
+        authToken: process.env.SENTRY_AUTH_TOKEN,
+        telemetry: false,
+      }),
+    ]
+  : [];
 
 export default defineConfig({
   plugins: [react(), ...sentryPlugin],
