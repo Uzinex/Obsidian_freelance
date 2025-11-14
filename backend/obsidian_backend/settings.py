@@ -14,6 +14,8 @@ import os
 from pathlib import Path
 
 import dj_database_url
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
 
 
 def get_bool_env(var_name, default=False):
@@ -186,3 +188,19 @@ CORS_ALLOW_CREDENTIALS = get_bool_env("DJANGO_CORS_ALLOW_CREDENTIALS", default=T
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 VERIFICATION_ADMIN_EMAIL = os.getenv("VERIFICATION_ADMIN_EMAIL", "")
+
+
+SENTRY_DSN = os.getenv("SENTRY_DSN")
+SENTRY_ENVIRONMENT = os.getenv("SENTRY_ENVIRONMENT", "dev")
+SENTRY_RELEASE = os.getenv("SENTRY_RELEASE") or "TODO_SET_RELEASE"
+
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        environment=SENTRY_ENVIRONMENT,
+        release=SENTRY_RELEASE,
+        traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.2")),
+        profiles_sample_rate=float(os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "0.2")),
+        send_default_pii=True,
+    )
