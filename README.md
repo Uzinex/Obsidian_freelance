@@ -76,6 +76,38 @@ npm run build
 npm run preview  # опционально, локальный предпросмотр
 ```
 
+## Стандарты кода
+
+### Backend
+
+```bash
+# форматирование и проверка стиля
+black --config backend/pyproject.toml backend
+isort --settings-path backend/pyproject.toml backend
+ruff check backend --config backend/pyproject.toml
+
+# статический анализ
+mypy backend --config-file backend/mypy.ini
+```
+
+### Frontend
+
+```bash
+cd frontend
+npx eslint . --ext js,jsx --config .eslintrc.cjs
+npx prettier "src/**/*.{js,jsx}" --config .prettierrc --check
+```
+
+### pre-commit
+
+```bash
+pip install pre-commit
+pre-commit install
+pre-commit run --all-files
+```
+
+Команда `pre-commit install` создаёт git-хуки, которые автоматически запускают форматтеры и линтеры перед каждым коммитом.
+
 ## Ключевые возможности
 - Регистрация c никнеймом, e-mail (Gmail), паролем и годом рождения (16+).
 - Обязательное заполнение расширенного профиля с выбором роли (фрилансер/заказчик) и детальной анкетой.

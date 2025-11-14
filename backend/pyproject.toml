@@ -1,0 +1,50 @@
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+include = "\\.pyi?$"
+
+[tool.isort]
+profile = "black"
+line_length = 88
+known_first_party = [
+  "accounts",
+  "marketplace",
+  "obsidian_backend",
+]
+combine_as_imports = true
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+exclude = [
+  "migrations",
+  "venv",
+]
+
+[tool.ruff.lint]
+select = [
+  "E",  # pycodestyle errors
+  "F",  # pyflakes
+  "I",  # import sorting
+  "B",  # flake8-bugbear
+  "UP", # pyupgrade
+  "DJ", # Django specific checks
+]
+ignore = ["E203", "E501"]
+fixable = ["ALL"]
+per-file-ignores = {"*/migrations/*.py" = ["E501", "DJ001"]}
+
+[tool.ruff.lint.isort]
+known-first-party = ["accounts", "marketplace", "obsidian_backend"]
+combine-as-imports = true
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.coverage.run]
+omit = [
+  "*/migrations/*",
+  "venv/*",
+]
