@@ -7,7 +7,9 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from accounts import rbac
 from accounts.models import Notification, Profile
+from accounts.permissions import RoleBasedAccessPermission
 from accounts.utils import create_notification
 from .models import Category, Contract, Order, OrderApplication, Skill
 from .serializers import (
@@ -41,7 +43,7 @@ class SkillViewSet(viewsets.ReadOnlyModelViewSet):
 
 class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [RoleBasedAccessPermission]
     queryset = (
         Order.objects.select_related("client", "client__user")
         .prefetch_related("required_skills")
@@ -51,6 +53,15 @@ class OrderViewSet(viewsets.ModelViewSet):
     search_fields = ("title", "description")
     ordering_fields = ("created_at", "deadline", "budget")
     ordering = ("-created_at",)
+    rbac_action_map = {
+        "list": "orders:view",
+        "retrieve": "orders:view",
+        "create": "orders:create",
+        "update": "orders:edit",
+        "partial_update": "orders:edit",
+        "destroy": "orders:delete",
+        "featured": "orders:view",
+    }
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -72,38 +83,30 @@ class OrderViewSet(viewsets.ModelViewSet):
         profile, _created = Profile.objects.get_or_create(
             user=self.request.user, defaults={"role": Profile.ROLE_CLIENT}
         )
-        if profile.role != Profile.ROLE_CLIENT:
+        if profile.role != Profile.ROLE_CLIENT and not rbac.user_has_role(
+            self.request.user, rbac.Role.STAFF
+        ):
             raise permissions.PermissionDenied(
                 "Only clients can publish orders."
             )
-        if not profile.is_verified:
+        if (
+            profile.role == Profile.ROLE_CLIENT
+            and not profile.is_verified
+            and not rbac.user_has_role(self.request.user, rbac.Role.STAFF)
+        ):
             raise PermissionDenied("Ваша заявка на верификацию ещё не одобрена.")
         serializer.save(client=profile)
 
-    @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny])
+    @action(detail=False, methods=["get"])
     def featured(self, request):
         queryset = self.get_queryset().filter(order_type=Order.ORDER_TYPE_PREMIUM)
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
     def perform_update(self, serializer):
-        profile, _created = Profile.objects.get_or_create(
-            user=self.request.user, defaults={"role": Profile.ROLE_FREELANCER}
-        )
-        if serializer.instance.client != profile:
-            raise permissions.PermissionDenied("You can only update your own orders.")
-        if not profile.is_verified:
-            raise PermissionDenied("Ваша заявка на верификацию ещё не одобрена.")
         serializer.save()
 
     def perform_destroy(self, instance):
-        profile, _created = Profile.objects.get_or_create(
-            user=self.request.user, defaults={"role": Profile.ROLE_FREELANCER}
-        )
-        if instance.client != profile:
-            raise permissions.PermissionDenied("You can only delete your own orders.")
-        if not profile.is_verified:
-            raise PermissionDenied("Ваша заявка на верификацию ещё не одобрена.")
         instance.delete()
 
 
@@ -222,7 +225,15 @@ class OrderApplicationViewSet(viewsets.ModelViewSet):
 
 class ContractViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ContractSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, RoleBasedAccessPermission]
+    rbac_action_map = {
+        "list": "contracts:view",
+        "retrieve": "contracts:view",
+        "sign": "contracts:edit",
+        "complete": "contracts:edit",
+        "request_termination": "contracts:edit",
+        "approve_termination": "finance:manage",
+    }
 
     def get_queryset(self):
         queryset = Contract.objects.select_related(
@@ -233,7 +244,9 @@ class ContractViewSet(viewsets.ReadOnlyModelViewSet):
             "freelancer__user",
         )
         user = self.request.user
-        if user.is_staff:
+        if rbac.user_has_role(user, rbac.Role.STAFF) or rbac.user_has_role(
+            user, rbac.Role.FINANCE
+        ) or rbac.user_has_role(user, rbac.Role.MODERATOR):
             return queryset
         profile = getattr(user, "profile", None)
         if profile is None:
@@ -252,7 +265,7 @@ class ContractViewSet(viewsets.ReadOnlyModelViewSet):
     def _get_other_party(self, contract: Contract, actor: Profile) -> Profile:
         return contract.freelancer if actor == contract.client else contract.client
 
-    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated])
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, RoleBasedAccessPermission])
     def sign(self, request, pk=None):
         contract = self.get_object()
         profile = self._get_profile()
@@ -292,7 +305,7 @@ class ContractViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = self.get_serializer(contract)
         return Response(serializer.data)
 
-    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated])
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, RoleBasedAccessPermission])
     def complete(self, request, pk=None):
         contract = self.get_object()
         profile = self._get_profile()
@@ -323,7 +336,7 @@ class ContractViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = self.get_serializer(contract)
         return Response(serializer.data)
 
-    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated])
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, RoleBasedAccessPermission])
     def request_termination(self, request, pk=None):
         contract = self.get_object()
         profile = self._get_profile()
@@ -357,7 +370,7 @@ class ContractViewSet(viewsets.ReadOnlyModelViewSet):
     @action(
         detail=True,
         methods=["post"],
-        permission_classes=[permissions.IsAdminUser],
+        permission_classes=[permissions.IsAuthenticated, RoleBasedAccessPermission],
     )
     def approve_termination(self, request, pk=None):
         contract = self.get_object()

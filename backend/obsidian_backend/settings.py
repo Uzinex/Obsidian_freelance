@@ -58,7 +58,16 @@ SECRET_KEY = os.getenv(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = get_bool_env("DJANGO_DEBUG", default=True)
 
-ALLOWED_HOSTS = get_list_env("DJANGO_ALLOWED_HOSTS", default=["*"])
+ENVIRONMENT = os.getenv("DJANGO_ENVIRONMENT", "dev").lower()
+
+ALLOWED_HOSTS = get_list_env(
+    "DJANGO_ALLOWED_HOSTS",
+    default=[
+        "localhost",
+        "127.0.0.1",
+        "::1",
+    ],
+)
 
 
 # Application definition
@@ -77,6 +86,7 @@ INSTALLED_APPS = [
     # Local apps
     "accounts",
     "marketplace",
+    "uploads",
 ]
 
 MIDDLEWARE = [
@@ -88,6 +98,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "obsidian_backend.middleware.SecurityHeadersMiddleware",
+    "obsidian_backend.middleware.AdminAccessMiddleware",
 ]
 
 ROOT_URLCONF = "obsidian_backend.urls"
@@ -161,6 +173,7 @@ STATIC_ROOT = BASE_DIR / "static"
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
+PRIVATE_MEDIA_ROOT = BASE_DIR / "private_media"
 
 AUTH_USER_MODEL = "accounts.User"
 
@@ -169,6 +182,7 @@ REST_FRAMEWORK = {
         "accounts.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
+        "accounts.permissions.RoleBasedAccessPermission",
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ),
     "DEFAULT_THROTTLE_CLASSES": (
@@ -187,21 +201,69 @@ if jwt_conf.FEATURE_FLAGS.get("auth.token_legacy", False):
         "rest_framework.authentication.TokenAuthentication",
     )
 
-AUTH_REQUIRE_2FA_FOR_STAFF = (
-    not DEBUG and jwt_conf.FEATURE_FLAGS.get("auth.2fa", False)
-)
+AUTH_REQUIRE_2FA_FOR_STAFF = jwt_conf.FEATURE_FLAGS.get("auth.2fa", False)
 
-CORS_ALLOWED_ORIGINS = get_list_env(
-    "DJANGO_CORS_ALLOWED_ORIGINS",
-    default=[
+CORS_ENV_ORIGINS = {
+    "dev": [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ],
+    "stage": [
+        "https://stage.app.obsidian.dev",
+        "https://stage-admin.obsidian.dev",
+    ],
+    "prod": [
+        "https://app.obsidian.io",
+        "https://admin.obsidian.io",
+    ],
+}
+
+CORS_ALLOWED_ORIGINS = get_list_env(
+    "DJANGO_CORS_ALLOWED_ORIGINS",
+    default=CORS_ENV_ORIGINS.get(ENVIRONMENT, []),
 )
 
 CORS_ALLOW_CREDENTIALS = get_bool_env("DJANGO_CORS_ALLOW_CREDENTIALS", default=True)
+
+CSRF_TRUSTED_ORIGINS = [origin for origin in CORS_ALLOWED_ORIGINS if origin.startswith("https://")]
+
+SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_AGE = int(os.getenv("DJANGO_SESSION_COOKIE_AGE", 60 * 60 * 8))
+
+CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_AGE = int(os.getenv("DJANGO_CSRF_COOKIE_AGE", 60 * 60 * 8))
+
+SECURE_HSTS_SECONDS = int(os.getenv("DJANGO_SECURE_HSTS_SECONDS", 60 * 60 * 24 * 365))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = get_bool_env(
+    "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True
+)
+SECURE_HSTS_PRELOAD = get_bool_env("DJANGO_SECURE_HSTS_PRELOAD", default=not DEBUG)
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = os.getenv(
+    "DJANGO_SECURE_REFERRER_POLICY", "strict-origin-when-cross-origin"
+)
+X_FRAME_OPTIONS = "DENY"
+
+CONTENT_SECURITY_POLICY = {
+    "default-src": ["'self'"],
+    "script-src": ["'self'", "https://cdn.obsidian.io"],
+    "style-src": ["'self'", "https://fonts.googleapis.com"],
+    "font-src": ["'self'", "https://fonts.gstatic.com"],
+    "img-src": ["'self'", "data:", "https://cdn.obsidian.io"],
+    "connect-src": ["'self'", *CORS_ALLOWED_ORIGINS],
+    "frame-ancestors": ["'none'"],
+}
+
+ADMIN_BASE_PATH = os.getenv("DJANGO_ADMIN_PATH", "control-center/").strip("/") + "/"
+ADMIN_ALLOWED_IPS = get_list_env("DJANGO_ADMIN_ALLOWED_IPS", default=[])
+ADMIN_ALLOWED_ASN = get_list_env("DJANGO_ADMIN_ALLOWED_ASN", default=[])
+ADMIN_REQUIRE_ROLES_2FA = {"staff", "moderator", "finance"}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
