@@ -1,3 +1,4 @@
+import secrets
 from datetime import date
 
 from django.contrib.auth import authenticate
@@ -89,7 +90,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
 class LoginSerializer(serializers.Serializer):
     credential = serializers.CharField()
     password = serializers.CharField(style={"input_type": "password"})
-    device_id = serializers.CharField(max_length=128)
+    device_id = serializers.CharField(max_length=128, required=False, allow_blank=True)
     otp_code = serializers.CharField(required=False, allow_blank=True)
     backup_code = serializers.CharField(required=False, allow_blank=True)
     captcha = serializers.CharField(required=False, allow_blank=True)
@@ -139,8 +140,10 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"detail": _("User account is disabled.")}
             )
+        device_id = attrs.get("device_id") or secrets.token_hex(16)
         attrs["user"] = user
         attrs["credential"] = credential
+        attrs["device_id"] = device_id
         two_factor_required = False
         two_factor_verified = False
         used_backup_code = False

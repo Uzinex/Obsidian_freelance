@@ -8,6 +8,8 @@ from rest_framework.test import APITestCase
 
 from marketplace.models import Category, Order, Skill
 
+from obsidian_backend import jwt_settings as jwt_conf
+
 from .models import Profile, User
 
 
@@ -163,3 +165,28 @@ class OrderRBACPermissionTests(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class LoginViewTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            nickname="loginuser",
+            email="login@example.com",
+            password="StrongPass123!",
+            first_name="Login",
+            last_name="Tester",
+        )
+
+    def test_login_generates_device_id_when_missing(self):
+        response = self.client.post(
+            reverse("login"),
+            {"credential": "loginuser", "password": "StrongPass123!"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("session", response.data)
+        device_id = response.data["session"].get("device_id")
+        self.assertTrue(device_id)
+        self.assertLessEqual(len(device_id), 128)
+        cookie = response.cookies.get(jwt_conf.JWT_REFRESH_COOKIE.name)
+        self.assertIsNotNone(cookie)
