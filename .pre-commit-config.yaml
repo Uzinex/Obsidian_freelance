@@ -1,0 +1,56 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+        name: black (backend)
+        files: ^backend/.*\.py$
+        args: ["--config", "backend/pyproject.toml"]
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        name: isort (backend)
+        files: ^backend/.*\.py$
+        args: ["--settings-path", "backend/pyproject.toml"]
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.8
+    hooks:
+      - id: ruff
+        name: ruff (backend)
+        files: ^backend/.*\.py$
+        args: ["--config", "backend/pyproject.toml"]
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        name: mypy (backend)
+        files: ^backend/.*\.py$
+        args: ["--config-file", "backend/mypy.ini"]
+        additional_dependencies:
+          - django-stubs>=4.2.7
+          - djangorestframework-stubs>=1.10.0
+          - django>=4.2
+          - djangorestframework>=3.14
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v8.57.0
+    hooks:
+      - id: eslint
+        name: eslint (frontend)
+        files: ^frontend/.*\.[jt]sx?$
+        args: ["--config", "frontend/.eslintrc.cjs"]
+        additional_dependencies:
+          - eslint@8.57.0
+          - eslint-plugin-react@7.34.1
+          - eslint-plugin-react-hooks@4.6.0
+          - eslint-plugin-jsx-a11y@6.8.0
+          - eslint-config-prettier@9.1.0
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.2.5
+    hooks:
+      - id: prettier
+        name: prettier (frontend)
+        files: ^frontend/.*\.[jt]sx?$
+        args: ["--config", "frontend/.prettierrc"]
+        additional_dependencies:
+          - prettier@3.2.5
