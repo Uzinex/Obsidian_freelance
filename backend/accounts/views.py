@@ -3,19 +3,15 @@ from decimal import Decimal
 
 from django.utils import timezone
 from rest_framework import generics, permissions, status, viewsets
-from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from .models import Notification, Profile, VerificationRequest, Wallet
 from .permissions import IsVerificationAdmin
 from .serializers import (
-    LoginSerializer,
     NotificationSerializer,
     ProfileSerializer,
     RegistrationSerializer,
-    UserSerializer,
     VerificationRequestSerializer,
     WalletSerializer,
 )
@@ -26,34 +22,8 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegistrationSerializer
     permission_classes = [permissions.AllowAny]
 
-    def create(self, request, *args, **kwargs):
-        response = super().create(request, *args, **kwargs)
-        user = self.get_queryset().model.objects.get(nickname=response.data["nickname"])
-        token, _created = Token.objects.get_or_create(user=user)
-        response.data = {"token": token.key, "user": UserSerializer(user).data}
-        return response
-
     def get_queryset(self):
         return self.serializer_class.Meta.model.objects.all()
-
-
-class LoginView(APIView):
-    permission_classes = [permissions.AllowAny]
-
-    def post(self, request, *args, **kwargs):
-        serializer = LoginSerializer(data=request.data, context={"request": request})
-        serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data["user"]
-        token, _created = Token.objects.get_or_create(user=user)
-        return Response({"token": token.key, "user": UserSerializer(user).data})
-
-
-class LogoutView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, *args, **kwargs):
-        Token.objects.filter(user=request.user).delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ProfileViewSet(viewsets.ModelViewSet):

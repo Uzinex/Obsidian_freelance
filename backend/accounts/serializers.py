@@ -4,20 +4,27 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
-from rest_framework.authtoken.models import Token
 
 from marketplace.models import Skill
 
 from .models import (
+    AuditEvent,
+    AuthSession,
     Notification,
+    OneTimeToken,
     Profile,
     User,
+    UsedRefreshToken,
     VerificationRequest,
     Wallet,
     WalletTransaction,
+    generate_token_hash,
 )
+from .security import captcha_required
+from .twofactor import ensure_config, use_backup_code, verify_totp
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -31,8 +38,10 @@ class UserSerializer(serializers.ModelSerializer):
             "last_name",
             "patronymic",
             "birth_year",
+            "email_verified",
+            "email_verified_at",
         )
-        read_only_fields = ("id",)
+        read_only_fields = ("id", "email_verified", "email_verified_at")
 
 
 class RegistrationSerializer(serializers.ModelSerializer):
@@ -74,49 +83,153 @@ class RegistrationSerializer(serializers.ModelSerializer):
         user = User(**validated_data)
         user.set_password(password)
         user.save()
-        Token.objects.create(user=user)
         return user
 
 
 class LoginSerializer(serializers.Serializer):
     credential = serializers.CharField()
     password = serializers.CharField(style={"input_type": "password"})
+    device_id = serializers.CharField(max_length=128)
+    otp_code = serializers.CharField(required=False, allow_blank=True)
+    backup_code = serializers.CharField(required=False, allow_blank=True)
+    captcha = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, attrs):
+        request = self.context.get("request")
         credential = attrs.get("credential")
         password = attrs.get("password")
-        if credential and password:
-            user = authenticate(
-                request=self.context.get("request"),
-                nickname=credential,
-                password=password,
-            )
-            if not user:
-                # Try login with email
-                try:
-                    user_obj = User.objects.get(email__iexact=credential)
-                except User.DoesNotExist as exc:  # pragma: no cover - handled by message
-                    raise serializers.ValidationError(
-                        _("Unable to log in with provided credentials."),
-                        code="authorization",
-                    ) from exc
-                user = authenticate(
-                    request=self.context.get("request"),
-                    nickname=user_obj.nickname,
-                    password=password,
-                )
-            if not user:
+        if captcha_required():
+            captcha_value = attrs.get("captcha")
+            if not captcha_value:
                 raise serializers.ValidationError(
-                    _("Unable to log in with provided credentials."),
-                    code="authorization",
+                    {"captcha": _("Captcha challenge is required.")}
                 )
-        else:
+            from .security import captcha_hook  # local import to avoid circular deps
+
+            captcha_hook({"credential": credential, "request": request})
+        if not credential or not password:
             raise serializers.ValidationError(
                 _("Must include 'credential' and 'password'."),
                 code="authorization",
             )
+        user = authenticate(
+            request=request,
+            nickname=credential,
+            password=password,
+        )
+        if not user:
+            try:
+                user_obj = User.objects.get(email__iexact=credential)
+            except User.DoesNotExist as exc:
+                raise serializers.ValidationError(
+                    _("Unable to log in with provided credentials."),
+                    code="authorization",
+                ) from exc
+            user = authenticate(
+                request=request,
+                nickname=user_obj.nickname,
+                password=password,
+            )
+        if not user:
+            raise serializers.ValidationError(
+                _("Unable to log in with provided credentials."),
+                code="authorization",
+            )
+        if not user.is_active:
+            raise serializers.ValidationError(
+                {"detail": _("User account is disabled.")}
+            )
         attrs["user"] = user
+        attrs["credential"] = credential
+        two_factor_required = False
+        two_factor_verified = False
+        used_backup_code = False
+        if hasattr(user, "two_factor") and user.two_factor.is_enabled:
+            two_factor_required = True
+            otp_code = attrs.get("otp_code")
+            backup_code = attrs.get("backup_code")
+            config = user.two_factor
+            if otp_code and verify_totp(config, otp_code):
+                two_factor_verified = True
+            elif backup_code and use_backup_code(config, backup_code):
+                two_factor_verified = True
+                used_backup_code = True
+            else:
+                raise serializers.ValidationError(
+                    {"otp_code": _("Invalid or missing two-factor authentication code.")}
+                )
+        attrs["two_factor_required"] = two_factor_required
+        attrs["two_factor_verified"] = two_factor_verified
+        attrs["used_backup_code"] = used_backup_code
         return attrs
+
+
+class AuthSessionSerializer(serializers.ModelSerializer):
+    is_active = serializers.SerializerMethodField()
+    two_factor_verified = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AuthSession
+        fields = (
+            "id",
+            "device_id",
+            "user_agent",
+            "ip_address",
+            "created_at",
+            "last_refreshed_at",
+            "refresh_token_expires_at",
+            "absolute_expiration_at",
+            "revoked_at",
+            "is_active",
+            "two_factor_verified",
+        )
+        read_only_fields = fields
+
+    def get_is_active(self, obj: AuthSession) -> bool:
+        return obj.is_active
+
+    def get_two_factor_verified(self, obj: AuthSession) -> bool:
+        return obj.extra.get("two_factor_verified", False)
+
+
+class TokenSerializer(serializers.Serializer):
+    token = serializers.CharField()
+
+
+class EmailTokenSerializer(serializers.Serializer):
+    token = serializers.CharField()
+
+
+class EmailVerificationRequestSerializer(serializers.Serializer):
+    pass
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    token = serializers.CharField()
+    new_password = serializers.CharField(write_only=True)
+
+    def validate_new_password(self, value: str) -> str:
+        try:
+            validate_password(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages)) from exc
+        return value
+
+
+class EmailChangeRequestSerializer(serializers.Serializer):
+    new_email = serializers.EmailField()
+
+
+class EmailChangeConfirmSerializer(serializers.Serializer):
+    token = serializers.CharField()
+
+
+class TwoFactorSetupSerializer(serializers.Serializer):
+    otp_code = serializers.CharField(required=True)
 
 
 class ProfileSerializer(serializers.ModelSerializer):
