@@ -1,8 +1,12 @@
+from datetime import timedelta
+from decimal import Decimal
+
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from marketplace.models import Category, Skill
+from marketplace.models import Category, Order, Skill
 
 from .models import Profile, User
 
@@ -82,3 +86,80 @@ class ProfileSerializerTests(APITestCase):
         self.assertTrue(
             Profile.objects.get(id=profile_id).skills.filter(id=skill.id).exists()
         )
+
+
+class OrderRBACPermissionTests(APITestCase):
+    def setUp(self):
+        self.client_user = User.objects.create_user(
+            nickname="client", email="client@example.com", password="Str0ngPass!",
+            first_name="Client", last_name="User",
+        )
+        self.client_profile = Profile.objects.create(
+            user=self.client_user,
+            role=Profile.ROLE_CLIENT,
+            is_verified=True,
+        )
+        self.order = Order.objects.create(
+            title="Test order",
+            description="Secure",
+            deadline=timezone.now() + timedelta(days=7),
+            payment_type=Order.PAYMENT_FIXED,
+            budget=Decimal("1000.00"),
+            currency=Order.CURRENCY_UZS,
+            order_type=Order.ORDER_TYPE_STANDARD,
+            client=self.client_profile,
+        )
+        self.freelancer_user = User.objects.create_user(
+            nickname="freelancer", email="freelancer@example.com", password="Str0ngPass!",
+            first_name="Free", last_name="Lancer",
+        )
+        Profile.objects.create(
+            user=self.freelancer_user,
+            role=Profile.ROLE_FREELANCER,
+            is_verified=True,
+        )
+        self.staff_user = User.objects.create_user(
+            nickname="staffer", email="staff@example.com", password="Str0ngPass!",
+            first_name="Staff", last_name="User",
+            is_staff=True,
+        )
+
+    def test_client_can_update_own_order(self):
+        self.client.force_authenticate(user=self.client_user)
+        response = self.client.patch(
+            reverse("order-detail", args=[self.order.id]),
+            {"title": "Updated"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.title, "Updated")
+
+    def test_unverified_client_cannot_update_order(self):
+        self.client_profile.is_verified = False
+        self.client_profile.save(update_fields=["is_verified"])
+        self.client.force_authenticate(user=self.client_user)
+        response = self.client.patch(
+            reverse("order-detail", args=[self.order.id]),
+            {"title": "Blocked"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_freelancer_cannot_update_foreign_order(self):
+        self.client.force_authenticate(user=self.freelancer_user)
+        response = self.client.patch(
+            reverse("order-detail", args=[self.order.id]),
+            {"title": "Malicious"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_staff_can_update_any_order(self):
+        self.client.force_authenticate(user=self.staff_user)
+        response = self.client.patch(
+            reverse("order-detail", args=[self.order.id]),
+            {"title": "Staff Update"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
