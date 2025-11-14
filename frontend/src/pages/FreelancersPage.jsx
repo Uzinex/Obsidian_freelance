@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { fetchCategories } from '../api/client.js';
 import { apiClient } from '../api/client.js';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 function resolveAvatar(url) {
   if (!url) return '';

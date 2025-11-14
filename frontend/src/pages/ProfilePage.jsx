@@ -22,7 +22,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import SkillSelector from '../components/SkillSelector.jsx';
 import { formatCurrency } from '../utils/formatCurrency.js';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 const roleOptions = [
   { value: 'freelancer', label: 'Фрилансер' },

@@ -15,6 +15,24 @@ from pathlib import Path
 
 import dj_database_url
 
+
+def get_bool_env(var_name, default=False):
+    """Parse boolean environment variables."""
+
+    value = os.getenv(var_name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def get_list_env(var_name, default=None):
+    """Parse comma-separated environment variables into a list."""
+
+    value = os.getenv(var_name)
+    if value is None or value.strip() == "":
+        return list(default or [])
+    return [item.strip() for item in value.split(",") if item.strip()]
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -29,9 +47,9 @@ SECRET_KEY = os.getenv(
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = get_bool_env("DJANGO_DEBUG", default=True)
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = get_list_env("DJANGO_ALLOWED_HOSTS", default=["*"])
 
 
 # Application definition
@@ -150,20 +168,21 @@ REST_FRAMEWORK = {
     ),
 }
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
+CORS_ALLOWED_ORIGINS = get_list_env(
+    "DJANGO_CORS_ALLOWED_ORIGINS",
+    default=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+)
 
-CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_CREDENTIALS = get_bool_env("DJANGO_CORS_ALLOW_CREDENTIALS", default=True)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-VERIFICATION_ADMIN_EMAIL = os.getenv(
-    "VERIFICATION_ADMIN_EMAIL", "fdilov1@gmail.com"
-)
+VERIFICATION_ADMIN_EMAIL = os.getenv("VERIFICATION_ADMIN_EMAIL", "")
