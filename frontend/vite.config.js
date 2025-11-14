@@ -1,14 +1,34 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { createRequire } from 'module';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 
 const require = createRequire(import.meta.url);
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 let sentryVitePlugin;
 try {
   ({ default: sentryVitePlugin } = require('@sentry/vite-plugin'));
 } catch (error) {
   if (error.code !== 'MODULE_NOT_FOUND') {
+    throw error;
+  }
+}
+
+const sentryAlias = {};
+try {
+  require.resolve('@sentry/react');
+} catch (error) {
+  if (error.code === 'MODULE_NOT_FOUND') {
+    sentryAlias['@sentry/react'] = resolve(
+      __dirname,
+      'src',
+      'mocks',
+      'sentry-react.js',
+    );
+  } else {
     throw error;
   }
 }
@@ -31,6 +51,11 @@ const sentryPlugin = hasSentryConfig && sentryVitePlugin
 
 export default defineConfig({
   plugins: [react(), ...sentryPlugin],
+  resolve: {
+    alias: {
+      ...sentryAlias,
+    },
+  },
   server: {
     port: 5173,
     proxy: {
