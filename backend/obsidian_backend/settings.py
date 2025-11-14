@@ -15,6 +15,8 @@ from pathlib import Path
 
 import dj_database_url
 
+from . import jwt_settings as jwt_conf
+
 try:  # pragma: no cover - optional dependency handling
     import sentry_sdk
     from sentry_sdk.integrations.django import DjangoIntegration
@@ -198,6 +200,21 @@ VERIFICATION_ADMIN_EMAIL = os.getenv("VERIFICATION_ADMIN_EMAIL", "")
 SENTRY_DSN = os.getenv("SENTRY_DSN")
 SENTRY_ENVIRONMENT = os.getenv("SENTRY_ENVIRONMENT", "dev")
 SENTRY_RELEASE = os.getenv("SENTRY_RELEASE") or "TODO_SET_RELEASE"
+
+
+FEATURE_FLAGS = jwt_conf.FEATURE_FLAGS
+
+JWT_SETTINGS = {
+    "environment": jwt_conf.JWT_ENVIRONMENT,
+    "access_ttl_seconds": jwt_conf.JWT_ACCESS_TTL_SECONDS,
+    "refresh_ttl_seconds": jwt_conf.JWT_REFRESH_TTL_SECONDS,
+    "refresh_sliding_window_seconds": jwt_conf.JWT_REFRESH_SLIDING_WINDOW_SECONDS,
+    "refresh_absolute_lifetime_seconds": jwt_conf.JWT_REFRESH_ABSOLUTE_LIFETIME_SECONDS,
+    "refresh_cookie": jwt_conf.JWT_REFRESH_COOKIE,
+    "access_keys": jwt_conf.JWT_ACCESS_KEYS,
+    "refresh_keys": jwt_conf.JWT_REFRESH_KEYS,
+    "keyrings": jwt_conf.JWT_KEYRINGS,
+}
 
 if SENTRY_DSN and sentry_sdk and DjangoIntegration:
     sentry_sdk.init(
