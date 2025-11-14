@@ -4,7 +4,7 @@ const AuthContext = createContext(null);
 
 const STORAGE_KEY = 'obsidian_freelance_auth';
 const VERIFICATION_ADMIN_EMAIL =
-  import.meta.env.VITE_VERIFICATION_ADMIN_EMAIL?.toLowerCase() || 'fdilov1@gmail.com';
+  import.meta.env.VITE_VERIFICATION_ADMIN_EMAIL?.toLowerCase() || '';
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
