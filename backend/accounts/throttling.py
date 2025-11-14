@@ -27,6 +27,10 @@ class EndpointRateThrottle(SimpleRateThrottle):
 
         self.scope = f"{scope}_{self.category_suffix}"
         rate = self.get_rate()
+        # ``SimpleRateThrottle.allow_request`` expects ``self.rate`` to be set.
+        # ``get_rate`` defers to the scope we've just constructed, so store the
+        # resolved value before delegating to the parent implementation.
+        self.rate = rate
         self.num_requests, self.duration = self.parse_rate(rate)
 
         return super().allow_request(request, view)
