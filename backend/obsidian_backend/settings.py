@@ -14,8 +14,13 @@ import os
 from pathlib import Path
 
 import dj_database_url
-import sentry_sdk
-from sentry_sdk.integrations.django import DjangoIntegration
+
+try:  # pragma: no cover - optional dependency handling
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+except ModuleNotFoundError:  # The SDK is optional for local development
+    sentry_sdk = None
+    DjangoIntegration = None
 
 
 def get_bool_env(var_name, default=False):
@@ -194,7 +199,7 @@ SENTRY_DSN = os.getenv("SENTRY_DSN")
 SENTRY_ENVIRONMENT = os.getenv("SENTRY_ENVIRONMENT", "dev")
 SENTRY_RELEASE = os.getenv("SENTRY_RELEASE") or "TODO_SET_RELEASE"
 
-if SENTRY_DSN:
+if SENTRY_DSN and sentry_sdk and DjangoIntegration:
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[DjangoIntegration()],
