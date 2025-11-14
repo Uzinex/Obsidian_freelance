@@ -10,6 +10,27 @@ class EndpointRateThrottle(SimpleRateThrottle):
 
     category_suffix = "generic"
 
+    def __init__(self):
+        # ``SimpleRateThrottle`` tries to resolve the rate during ``__init__``
+        # which requires the ``scope`` attribute to be set. Our throttles
+        # determine the scope dynamically per view, so we defer rate
+        # resolution until the request cycle.
+        self.history = None
+        self.now = None
+        self.num_requests = None
+        self.duration = None
+
+    def allow_request(self, request, view):  # pragma: no cover - framework hook
+        scope = getattr(view, "throttle_scope", None)
+        if not scope:
+            return True
+
+        self.scope = f"{scope}_{self.category_suffix}"
+        rate = self.get_rate()
+        self.num_requests, self.duration = self.parse_rate(rate)
+
+        return super().allow_request(request, view)
+
     def get_cache_key(self, request, view):  # pragma: no cover - framework hook
         scope = getattr(view, "throttle_scope", None)
         if not scope:
