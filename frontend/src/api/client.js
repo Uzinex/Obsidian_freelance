@@ -9,7 +9,7 @@ export const apiClient = axios.create({
 
 export function applyAuthToken(token) {
   if (token) {
-    apiClient.defaults.headers.common.Authorization = `Token ${token}`;
+    apiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
   } else {
     delete apiClient.defaults.headers.common.Authorization;
   }

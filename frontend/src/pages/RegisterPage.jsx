@@ -21,10 +21,15 @@ export default function RegisterPage() {
       setErrorMessage('');
       clearErrors();
       const result = await registerUser(data);
-      applyAuthToken(result.token);
+      const authToken = result.access ?? result.token;
       const userPayload = result.user ?? result;
-      login(result.token, userPayload, true);
-      navigate('/profile');
+      if (authToken) {
+        applyAuthToken(authToken);
+        login(authToken, userPayload, true);
+        navigate('/profile');
+      } else {
+        navigate('/login');
+      }
     } catch (err) {
       const responseData = err.response?.data;
       if (responseData && typeof responseData === 'object' && !Array.isArray(responseData)) {
