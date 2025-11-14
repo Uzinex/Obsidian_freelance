@@ -130,7 +130,7 @@ DATABASES = {
     "default": dj_database_url.parse(
         os.getenv(
             "DATABASE_URL",
-            "postgresql://postgres:QodMCrMqhbvgtMsxuOlgKBgoZpOWcABE@trolley.proxy.rlwy.net:30558/railway",
+            "postgresql://postgres:YdSCArqIBpflQWBNVdCfCrQlYUwOJiQs@shortline.proxy.rlwy.net:13067/railway",
         ),
         conn_max_age=600,
     )
