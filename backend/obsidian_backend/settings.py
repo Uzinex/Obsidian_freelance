@@ -132,13 +132,11 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "NAME": "accounts.validators.PasswordComplexityValidator",
+        "OPTIONS": {"min_length": 12},
     },
     {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+        "NAME": "accounts.validators.CommonPasswordListValidator",
     },
 ]
 
@@ -168,14 +166,30 @@ AUTH_USER_MODEL = "accounts.User"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework.authentication.TokenAuthentication",
-        "rest_framework.authentication.SessionAuthentication",
-        "rest_framework.authentication.BasicAuthentication",
+        "accounts.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ),
+    "DEFAULT_THROTTLE_CLASSES": (
+        "accounts.throttling.LoginIPThrottle",
+        "accounts.throttling.LoginUserThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        "login_ip": os.getenv("AUTH_LOGIN_THROTTLE_IP", "10/min"),
+        "login_user": os.getenv("AUTH_LOGIN_THROTTLE_USER", "5/min"),
+    },
 }
+
+if jwt_conf.FEATURE_FLAGS.get("auth.token_legacy", False):
+    REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] = (
+        "accounts.authentication.JWTAuthentication",
+        "rest_framework.authentication.TokenAuthentication",
+    )
+
+AUTH_REQUIRE_2FA_FOR_STAFF = (
+    not DEBUG and jwt_conf.FEATURE_FLAGS.get("auth.2fa", False)
+)
 
 CORS_ALLOWED_ORIGINS = get_list_env(
     "DJANGO_CORS_ALLOWED_ORIGINS",

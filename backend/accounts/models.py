@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from decimal import Decimal
+import hashlib
+import secrets
+import uuid
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.utils import timezone
@@ -22,6 +27,8 @@ class User(AbstractUser):
         blank=True,
         help_text="Year of birth (must be 16+ to use the platform)",
     )
+    email_verified = models.BooleanField(default=False)
+    email_verified_at = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = "nickname"
     REQUIRED_FIELDS = ["email", "first_name", "last_name"]
@@ -340,3 +347,226 @@ class VerificationRequest(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover - simple data representation
         return f"Verification({self.profile.user.nickname}, {self.document_type})"
+
+
+def generate_token_hash(raw_token: str) -> str:
+    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+
+class AuthSession(models.Model):
+    """Active refresh-token registry with session metadata."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="auth_sessions",
+    )
+    device_id = models.CharField(max_length=128)
+    user_agent = models.TextField(blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    refresh_token_hash = models.CharField(max_length=128)
+    current_refresh_jti = models.CharField(max_length=64)
+    refresh_token_expires_at = models.DateTimeField()
+    absolute_expiration_at = models.DateTimeField()
+    last_refreshed_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    extra = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["user", "device_id"]),
+            models.Index(fields=["user", "revoked_at"]),
+        ]
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:  # pragma: no cover - simple data representation
+        return f"AuthSession({self.user_id}, {self.device_id})"
+
+    @property
+    def is_active(self) -> bool:
+        return self.revoked_at is None and self.refresh_token_expires_at > timezone.now()
+
+    def revoke(self, *, commit: bool = True) -> None:
+        if self.revoked_at:
+            return
+        self.revoked_at = timezone.now()
+        if commit:
+            self.save(update_fields=["revoked_at", "updated_at"])
+
+    def update_refresh(self, *, token: str, jti: str, ttl_seconds: int) -> None:
+        now = timezone.now()
+        self.refresh_token_hash = generate_token_hash(token)
+        self.current_refresh_jti = jti
+        self.refresh_token_expires_at = min(
+            self.absolute_expiration_at,
+            now + timedelta(seconds=ttl_seconds),
+        )
+        self.last_refreshed_at = now
+        self.save(
+            update_fields=[
+                "refresh_token_hash",
+                "current_refresh_jti",
+                "refresh_token_expires_at",
+                "last_refreshed_at",
+                "updated_at",
+            ]
+        )
+
+
+class UsedRefreshToken(models.Model):
+    """Store hashes of refresh tokens that were rotated to detect reuse."""
+
+    session = models.ForeignKey(
+        AuthSession,
+        on_delete=models.CASCADE,
+        related_name="used_tokens",
+    )
+    token_hash = models.CharField(max_length=128)
+    used_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("session", "token_hash")
+        indexes = [models.Index(fields=["session", "token_hash"])]
+
+
+class TwoFactorConfig(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="two_factor",
+    )
+    secret = models.CharField(max_length=32)
+    is_enabled = models.BooleanField(default=False)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    backup_codes_generated_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self) -> str:  # pragma: no cover - simple data representation
+        return f"TwoFactorConfig({self.user_id}, enabled={self.is_enabled})"
+
+    @classmethod
+    def generate_secret(cls) -> str:
+        return secrets.token_hex(10)
+
+    def ensure_ready(self) -> None:
+        if not self.secret:
+            raise ValidationError("TOTP secret is not configured")
+
+
+class TwoFactorBackupCode(models.Model):
+    config = models.ForeignKey(
+        TwoFactorConfig,
+        on_delete=models.CASCADE,
+        related_name="backup_codes",
+    )
+    code_hash = models.CharField(max_length=128)
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["config", "used_at"])]
+
+    @staticmethod
+    def hash_code(code: str) -> str:
+        return generate_token_hash(code)
+
+
+class OneTimeToken(models.Model):
+    PURPOSE_EMAIL_VERIFY = "email_verify"
+    PURPOSE_EMAIL_CHANGE = "email_change"
+    PURPOSE_PASSWORD_RESET = "password_reset"
+
+    PURPOSE_CHOICES = [
+        (PURPOSE_EMAIL_VERIFY, "Email verification"),
+        (PURPOSE_EMAIL_CHANGE, "Email change"),
+        (PURPOSE_PASSWORD_RESET, "Password reset"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="one_time_tokens",
+    )
+    purpose = models.CharField(max_length=32, choices=PURPOSE_CHOICES)
+    token_hash = models.CharField(max_length=128, unique=True)
+    payload = models.JSONField(default=dict, blank=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    request_metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["user", "purpose"]),
+            models.Index(fields=["purpose", "expires_at"]),
+        ]
+
+    def mark_used(self) -> None:
+        if not self.used_at:
+            self.used_at = timezone.now()
+            self.save(update_fields=["used_at"])
+
+    @property
+    def is_valid(self) -> bool:
+        return self.used_at is None and self.expires_at > timezone.now()
+
+
+class AuditEvent(models.Model):
+    TYPE_LOGIN = "login"
+    TYPE_LOGOUT = "logout"
+    TYPE_LOGOUT_ALL = "logout_all"
+    TYPE_REFRESH = "refresh"
+    TYPE_2FA_ENABLED = "2fa_enabled"
+    TYPE_2FA_DISABLED = "2fa_disabled"
+    TYPE_PASSWORD_RESET_REQUEST = "password_reset_request"
+    TYPE_PASSWORD_RESET_CONFIRM = "password_reset_confirm"
+    TYPE_EMAIL_VERIFY_REQUEST = "email_verify_request"
+    TYPE_EMAIL_VERIFY_CONFIRM = "email_verify_confirm"
+    TYPE_EMAIL_CHANGE_REQUEST = "email_change_request"
+    TYPE_EMAIL_CHANGE_CONFIRM = "email_change_confirm"
+
+    EVENT_CHOICES = [
+        (TYPE_LOGIN, "Login"),
+        (TYPE_LOGOUT, "Logout"),
+        (TYPE_LOGOUT_ALL, "Logout all"),
+        (TYPE_REFRESH, "Token refresh"),
+        (TYPE_2FA_ENABLED, "2FA enabled"),
+        (TYPE_2FA_DISABLED, "2FA disabled"),
+        (TYPE_PASSWORD_RESET_REQUEST, "Password reset requested"),
+        (TYPE_PASSWORD_RESET_CONFIRM, "Password reset confirmed"),
+        (TYPE_EMAIL_VERIFY_REQUEST, "Email verification requested"),
+        (TYPE_EMAIL_VERIFY_CONFIRM, "Email verification confirmed"),
+        (TYPE_EMAIL_CHANGE_REQUEST, "Email change requested"),
+        (TYPE_EMAIL_CHANGE_CONFIRM, "Email change confirmed"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="auth_events",
+    )
+    session = models.ForeignKey(
+        AuthSession,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="events",
+    )
+    device_id = models.CharField(max_length=128, blank=True)
+    event_type = models.CharField(max_length=32, choices=EVENT_CHOICES)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["user", "event_type"])]
+
+    def __str__(self) -> str:  # pragma: no cover - simple data representation
+        return f"AuditEvent(user={self.user_id}, type={self.event_type})"
