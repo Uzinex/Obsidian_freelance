@@ -1,35 +1,65 @@
 from __future__ import annotations
 
+from typing import Any
+
 from rest_framework.throttling import SimpleRateThrottle
 
 
-class _LoginThrottleMixin(SimpleRateThrottle):
-    scope = "login"
+class EndpointRateThrottle(SimpleRateThrottle):
+    """Base class for throttles that respect per-endpoint scopes."""
 
-    def get_scope(self, request, view):  # pragma: no cover - helper for clarity
-        return getattr(view, "throttle_scope", None)
+    category_suffix = "generic"
 
-    def allow_request(self, request, view):
-        if getattr(view, "throttle_scope", None) != "login":
-            return True
-        return super().allow_request(request, view)
-
-
-class LoginIPThrottle(_LoginThrottleMixin):
-    scope = "login_ip"
-
-    def get_cache_key(self, request, view):
-        if getattr(view, "throttle_scope", None) != "login":
+    def get_cache_key(self, request, view):  # pragma: no cover - framework hook
+        scope = getattr(view, "throttle_scope", None)
+        if not scope:
             return None
-        ident = self.get_ident(request)
+        ident = self._get_ident(request, view)
+        if not ident:
+            return None
+        self.scope = f"{scope}_{self.category_suffix}"
         return self.cache_format % {"scope": self.scope, "ident": ident}
 
+    def _get_ident(self, request, view) -> str | None:
+        raise NotImplementedError
 
-class LoginUserThrottle(_LoginThrottleMixin):
-    scope = "login_user"
 
-    def get_cache_key(self, request, view):
-        if getattr(view, "throttle_scope", None) != "login":
-            return None
-        credential = request.data.get("credential") or "anonymous"
-        return self.cache_format % {"scope": self.scope, "ident": credential.lower()}
+class EndpointIPRateThrottle(EndpointRateThrottle):
+    category_suffix = "ip"
+
+    def _get_ident(self, request, view) -> str | None:  # pragma: no cover - simple helper
+        return self.get_ident(request)
+
+
+class EndpointUserRateThrottle(EndpointRateThrottle):
+    category_suffix = "user"
+
+    def _get_ident(self, request, view) -> str | None:
+        user = getattr(request, "user", None)
+        if getattr(user, "is_authenticated", False):
+            return f"user:{user.pk}"
+        candidate: str | None = None
+        data_sources: list[Any] = []
+        if hasattr(request, "data"):
+            data_sources.append(request.data)
+        if hasattr(request, "query_params"):
+            data_sources.append(request.query_params)
+        for source in data_sources:
+            if not source:
+                continue
+            for key in ("credential", "email", "nickname", "username", "user"):
+                value = source.get(key)
+                if value:
+                    candidate = str(value).lower()
+                    break
+            if candidate:
+                break
+        if candidate:
+            return f"anon:{candidate}"
+        return None
+
+
+__all__ = [
+    "EndpointIPRateThrottle",
+    "EndpointUserRateThrottle",
+]

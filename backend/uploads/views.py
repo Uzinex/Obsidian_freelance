@@ -7,6 +7,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from accounts import rbac
+from accounts.audit import audit_logger
+from accounts.models import AuditEvent
 from accounts.permissions import RoleBasedAccessPermission
 from .models import SecureDocument, SecureDocumentLink
 from .scanner import scan_bytes
@@ -41,7 +43,11 @@ class SecureDocumentViewSet(
             return self.queryset
         return self.queryset.filter(owner=user)
 
-    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated, RoleBasedAccessPermission])
+    @action(
+        detail=False,
+        methods=["post"],
+        permission_classes=[IsAuthenticated, RoleBasedAccessPermission],
+    )
     def upload(self, request):
         serializer = SecureDocumentUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -65,8 +71,38 @@ class SecureDocumentViewSet(
             mime_type=mime_type,
         )
         document.refresh_from_db()
+        if document.category == SecureDocument.CATEGORY_KYC:
+            audit_logger.log_event(
+                event_type=AuditEvent.TYPE_KYC_UPLOAD,
+                user=request.user,
+                request=request,
+                metadata={
+                    "document_id": str(document.id),
+                    "filename": document.original_name,
+                    "category": document.category,
+                    "owner_id": document.owner_id,
+                },
+            )
         output = self.get_serializer(document)
         return Response(output.data, status=status.HTTP_201_CREATED)
+
+    upload.throttle_scope = "upload"
+
+    def retrieve(self, request, *args, **kwargs):
+        document = self.get_object()
+        serializer = self.get_serializer(document)
+        if document.category == SecureDocument.CATEGORY_KYC:
+            audit_logger.log_event(
+                event_type=AuditEvent.TYPE_KYC_VIEW,
+                user=request.user,
+                request=request,
+                metadata={
+                    "document_id": str(document.id),
+                    "owner_id": document.owner_id,
+                    "view": "metadata",
+                },
+            )
+        return Response(serializer.data)
 
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, RoleBasedAccessPermission])
     def presign(self, request, pk=None):
@@ -106,4 +142,16 @@ class SecureDocumentDownloadViewSet(viewsets.ViewSet):
         response["Content-Type"] = document.mime_type
         response["X-Content-Type-Options"] = "nosniff"
         response["Content-Disposition"] = f"attachment; filename*=UTF-8''{document.original_name}"
+        if document.category == SecureDocument.CATEGORY_KYC:
+            audit_logger.log_event(
+                event_type=AuditEvent.TYPE_KYC_VIEW,
+                user=request.user,
+                request=request,
+                metadata={
+                    "document_id": str(document.id),
+                    "owner_id": document.owner_id,
+                    "view": "download",
+                    "token_id": str(link.id),
+                },
+            )
         return response
