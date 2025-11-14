@@ -15,14 +15,18 @@ export default function LoginPage() {
     try {
       setError('');
       const result = await loginRequest({ credential: data.credential, password: data.password });
-      applyAuthToken(result.token);
+      const accessToken = result.access ?? result.token;
+      if (!accessToken) {
+        throw new Error('Access token is missing in the login response.');
+      }
+      applyAuthToken(accessToken);
       let profile;
       try {
         profile = await fetchProfile();
       } catch (profileError) {
         console.warn('Profile not yet completed', profileError);
       }
-      login(result.token, { ...result.user, profile }, data.remember);
+      login(accessToken, { ...result.user, profile }, data.remember);
       navigate(params.get('next') || '/profile');
     } catch (err) {
       setError('Неверный логин или пароль.');
