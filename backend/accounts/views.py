@@ -6,7 +6,8 @@ from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import Notification, Profile, VerificationRequest, Wallet
+from .audit import audit_logger
+from .models import AuditEvent, Notification, Profile, VerificationRequest, Wallet
 from .permissions import IsVerificationAdmin
 from .serializers import (
     NotificationSerializer,
@@ -21,6 +22,7 @@ from .utils import create_notification
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegistrationSerializer
     permission_classes = [permissions.AllowAny]
+    throttle_scope = "register"
 
     def get_queryset(self):
         return self.serializer_class.Meta.model.objects.all()
@@ -49,7 +51,20 @@ class ProfileViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
     def perform_update(self, serializer):
+        previous_role = getattr(serializer.instance, "role", None)
         profile = serializer.save()
+        if previous_role and profile.role != previous_role:
+            audit_logger.log_event(
+                event_type=AuditEvent.TYPE_ROLE_CHANGE,
+                user=self.request.user,
+                request=self.request,
+                metadata={
+                    "profile_id": profile.id,
+                    "old_role": previous_role,
+                    "new_role": profile.role,
+                    "target_user_id": profile.user_id,
+                },
+            )
         if profile.verification_requests.filter(
             status=VerificationRequest.STATUS_APPROVED
         ).exists():

@@ -529,6 +529,10 @@ class AuditEvent(models.Model):
     TYPE_EMAIL_VERIFY_CONFIRM = "email_verify_confirm"
     TYPE_EMAIL_CHANGE_REQUEST = "email_change_request"
     TYPE_EMAIL_CHANGE_CONFIRM = "email_change_confirm"
+    TYPE_KYC_UPLOAD = "kyc_upload"
+    TYPE_KYC_VIEW = "kyc_view"
+    TYPE_ROLE_CHANGE = "role_change"
+    TYPE_ACCESS_DENIED = "access_denied"
 
     EVENT_CHOICES = [
         (TYPE_LOGIN, "Login"),
@@ -543,12 +547,18 @@ class AuditEvent(models.Model):
         (TYPE_EMAIL_VERIFY_CONFIRM, "Email verification confirmed"),
         (TYPE_EMAIL_CHANGE_REQUEST, "Email change requested"),
         (TYPE_EMAIL_CHANGE_CONFIRM, "Email change confirmed"),
+        (TYPE_KYC_UPLOAD, "KYC document uploaded"),
+        (TYPE_KYC_VIEW, "KYC document accessed"),
+        (TYPE_ROLE_CHANGE, "Role changed"),
+        (TYPE_ACCESS_DENIED, "Access denied"),
     ]
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="auth_events",
+        null=True,
+        blank=True,
     )
     session = models.ForeignKey(
         AuthSession,
@@ -562,6 +572,9 @@ class AuditEvent(models.Model):
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.TextField(blank=True)
     metadata = models.JSONField(default=dict, blank=True)
+    trace_id = models.CharField(max_length=128, blank=True)
+    span_id = models.CharField(max_length=64, blank=True)
+    status_code = models.PositiveSmallIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

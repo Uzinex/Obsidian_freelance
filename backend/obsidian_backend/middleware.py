@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ipaddress
 import logging
+from typing import Any
 
 from django.conf import settings
 from django.contrib import auth
@@ -9,6 +10,8 @@ from django.http import HttpRequest, HttpResponse, HttpResponseForbidden
 from django.utils.deprecation import MiddlewareMixin
 
 from accounts import rbac
+from accounts.audit import audit_logger
+from accounts.models import AuditEvent
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +110,36 @@ class AdminAccessMiddleware(MiddlewareMixin):
         return HttpResponseForbidden("Two-factor authentication is required for admin access")
 
 
+class AuditAccessMiddleware(MiddlewareMixin):
+    """Record audit events for access denied responses on sensitive endpoints."""
+
+    def __init__(self, get_response):
+        super().__init__(get_response)
+        self.sensitive_prefixes = tuple(getattr(settings, "AUDIT_SENSITIVE_PATH_PREFIXES", []))
+
+    def _is_sensitive(self, path: str) -> bool:
+        if not self.sensitive_prefixes:
+            return True
+        return any(path.startswith(prefix) for prefix in self.sensitive_prefixes)
+
+    def process_response(self, request: HttpRequest, response: HttpResponse) -> HttpResponse:
+        if response.status_code in {401, 403} and self._is_sensitive(request.path):
+            metadata: dict[str, Any] = {"status_code": response.status_code}
+            detail = getattr(response, "data", None)
+            if detail:
+                metadata["detail"] = detail
+            audit_logger.log_event(
+                event_type=AuditEvent.TYPE_ACCESS_DENIED,
+                user=getattr(request, "user", None),
+                request=request,
+                status_code=response.status_code,
+                metadata=metadata,
+            )
+        return response
+
+
 __all__ = [
     "SecurityHeadersMiddleware",
     "AdminAccessMiddleware",
+    "AuditAccessMiddleware",
 ]

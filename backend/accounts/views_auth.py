@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 
 from obsidian_backend import jwt_settings as jwt_conf
 
+from .audit import audit_logger
 from .emails import send_auth_email
 from .jwt import JWTDecodeError, decode_jwt, issue_access_token, issue_refresh_token
 from .models import (
@@ -131,13 +132,12 @@ class LoginView(AuthCookieMixin, APIView):
             two_factor_verified=two_factor_verified,
         )
         self._reset_failures(request, credential)
-        AuditEvent.objects.create(
+        audit_logger.log_event(
+            event_type=AuditEvent.TYPE_LOGIN,
             user=user,
+            request=request,
             session=session,
             device_id=device_id,
-            event_type=AuditEvent.TYPE_LOGIN,
-            ip_address=ip_address or None,
-            user_agent=user_agent,
             metadata={"used_backup_code": serializer.validated_data.get("used_backup_code", False)},
         )
         response = Response(
@@ -204,13 +204,12 @@ class RefreshView(AuthCookieMixin, APIView):
             session=session,
             two_factor_verified=session.extra.get("two_factor_verified", False),
         )
-        AuditEvent.objects.create(
-            user=session.user,
-            session=session,
-            device_id=session.device_id,
+        audit_logger.log_event(
             event_type=AuditEvent.TYPE_REFRESH,
-            ip_address=session.ip_address,
-            user_agent=session.user_agent,
+            user=session.user,
+            request=request,
+            session=session,
+            metadata={"session_id": str(session.id)},
         )
         response = Response(
             {
@@ -231,13 +230,11 @@ class LogoutView(AuthCookieMixin, APIView):
         if not session:
             raise NotAuthenticated("No active session")
         session.revoke()
-        AuditEvent.objects.create(
-            user=request.user,
-            session=session,
-            device_id=session.device_id,
+        audit_logger.log_event(
             event_type=AuditEvent.TYPE_LOGOUT,
-            ip_address=session.ip_address,
-            user_agent=session.user_agent,
+            user=request.user,
+            request=request,
+            session=session,
         )
         response = Response(status=status.HTTP_204_NO_CONTENT)
         self.clear_refresh_cookie(response)
@@ -251,13 +248,11 @@ class LogoutAllView(AuthCookieMixin, APIView):
         now = timezone.now()
         sessions = AuthSession.objects.filter(user=request.user, revoked_at__isnull=True)
         sessions.update(revoked_at=now)
-        AuditEvent.objects.create(
-            user=request.user,
-            session=None,
-            device_id="*",
+        audit_logger.log_event(
             event_type=AuditEvent.TYPE_LOGOUT_ALL,
-            ip_address=_client_ip(request) or None,
-            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            user=request.user,
+            request=request,
+            device_id="*",
         )
         response = Response(status=status.HTTP_204_NO_CONTENT)
         self.clear_refresh_cookie(response)
@@ -275,6 +270,7 @@ class SessionListView(APIView):
 
 class EmailVerifyRequestView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = "email_verify"
 
     def post(self, request, *args, **kwargs):
         serializer = EmailVerificationRequestSerializer(data=request.data)
@@ -291,13 +287,10 @@ class EmailVerifyRequestView(APIView):
             to_email=request.user.email,
             context={"user": request.user, "token": token},
         )
-        AuditEvent.objects.create(
-            user=request.user,
-            session=getattr(request, "auth_session", None),
-            device_id=getattr(request, "auth_session", None).device_id if getattr(request, "auth_session", None) else "",
+        audit_logger.log_event(
             event_type=AuditEvent.TYPE_EMAIL_VERIFY_REQUEST,
-            ip_address=_client_ip(request) or None,
-            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            user=request.user,
+            request=request,
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -320,18 +313,18 @@ class EmailVerifyConfirmView(APIView):
                 user.save(update_fields=["email_verified", "email_verified_at"])
         except ValueError as exc:
             raise ValidationError({"token": str(exc)})
-        AuditEvent.objects.create(
-            user=user,
-            session=None,
-            device_id="",
+        audit_logger.log_event(
             event_type=AuditEvent.TYPE_EMAIL_VERIFY_CONFIRM,
-            ip_address=record.request_metadata.get("ip"),
+            user=user,
+            request=request,
+            metadata={"origin_ip": record.request_metadata.get("ip")},
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class PasswordResetRequestView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_scope = "password_reset"
 
     def post(self, request, *args, **kwargs):
         serializer = PasswordResetRequestSerializer(data=request.data)
@@ -353,12 +346,10 @@ class PasswordResetRequestView(APIView):
             to_email=user.email,
             context={"user": user, "token": token},
         )
-        AuditEvent.objects.create(
-            user=user,
-            session=None,
-            device_id="",
+        audit_logger.log_event(
             event_type=AuditEvent.TYPE_PASSWORD_RESET_REQUEST,
-            ip_address=_client_ip(request) or None,
+            user=user,
+            request=request,
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -380,12 +371,11 @@ class PasswordResetConfirmView(APIView):
                 user.save(update_fields=["password"])
         except ValueError as exc:
             raise ValidationError({"token": str(exc)})
-        AuditEvent.objects.create(
-            user=user,
-            session=None,
-            device_id="",
+        audit_logger.log_event(
             event_type=AuditEvent.TYPE_PASSWORD_RESET_CONFIRM,
-            ip_address=record.request_metadata.get("ip"),
+            user=user,
+            request=request,
+            metadata={"origin_ip": record.request_metadata.get("ip")},
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -410,13 +400,10 @@ class EmailChangeRequestView(APIView):
             to_email=new_email,
             context={"user": request.user, "token": token},
         )
-        AuditEvent.objects.create(
-            user=request.user,
-            session=getattr(request, "auth_session", None),
-            device_id=getattr(request, "auth_session", None).device_id if getattr(request, "auth_session", None) else "",
+        audit_logger.log_event(
             event_type=AuditEvent.TYPE_EMAIL_CHANGE_REQUEST,
-            ip_address=_client_ip(request) or None,
-            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            user=request.user,
+            request=request,
             metadata={"new_email": new_email},
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -445,13 +432,11 @@ class EmailChangeConfirmView(APIView):
                 user.save(update_fields=["email", "email_verified", "email_verified_at"])
         except ValueError as exc:
             raise ValidationError({"token": str(exc)})
-        AuditEvent.objects.create(
-            user=user,
-            session=None,
-            device_id="",
+        audit_logger.log_event(
             event_type=AuditEvent.TYPE_EMAIL_CHANGE_CONFIRM,
-            ip_address=record.request_metadata.get("ip"),
-            metadata={"new_email": new_email},
+            user=user,
+            request=request,
+            metadata={"new_email": new_email, "origin_ip": record.request_metadata.get("ip")},
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -476,12 +461,10 @@ class TwoFactorConfirmView(APIView):
         config.is_enabled = True
         config.confirmed_at = timezone.now()
         config.save(update_fields=["is_enabled", "confirmed_at", "updated_at"])
-        AuditEvent.objects.create(
-            user=request.user,
-            session=getattr(request, "auth_session", None),
-            device_id=getattr(request, "auth_session", None).device_id if getattr(request, "auth_session", None) else "",
+        audit_logger.log_event(
             event_type=AuditEvent.TYPE_2FA_ENABLED,
-            ip_address=_client_ip(request) or None,
+            user=request.user,
+            request=request,
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -501,12 +484,10 @@ class TwoFactorBackupCodesView(APIView):
     def post(self, request, *args, **kwargs):
         config = ensure_config(request.user)
         codes = generate_backup_codes(config)
-        AuditEvent.objects.create(
-            user=request.user,
-            session=getattr(request, "auth_session", None),
-            device_id=getattr(request, "auth_session", None).device_id if getattr(request, "auth_session", None) else "",
+        audit_logger.log_event(
             event_type=AuditEvent.TYPE_2FA_ENABLED,
-            ip_address=_client_ip(request) or None,
+            user=request.user,
+            request=request,
             metadata={"backup_codes_regenerated": True},
         )
         return Response({"codes": codes})
@@ -520,11 +501,9 @@ class TwoFactorDisableView(APIView):
         config.is_enabled = False
         config.save(update_fields=["is_enabled", "updated_at"])
         config.backup_codes.all().delete()
-        AuditEvent.objects.create(
-            user=request.user,
-            session=getattr(request, "auth_session", None),
-            device_id=getattr(request, "auth_session", None).device_id if getattr(request, "auth_session", None) else "",
+        audit_logger.log_event(
             event_type=AuditEvent.TYPE_2FA_DISABLED,
-            ip_address=_client_ip(request) or None,
+            user=request.user,
+            request=request,
         )
         return Response(status=status.HTTP_204_NO_CONTENT)

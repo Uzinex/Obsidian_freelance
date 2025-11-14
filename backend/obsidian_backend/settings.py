@@ -96,6 +96,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "obsidian_backend.middleware.AuditAccessMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "obsidian_backend.middleware.SecurityHeadersMiddleware",
@@ -134,6 +135,11 @@ DATABASES = {
         conn_max_age=600,
     )
 }
+
+AUDIT_SENSITIVE_PATH_PREFIXES = [
+    "/api/accounts/",
+    "/api/uploads/",
+]
 
 
 # Password validation
@@ -186,12 +192,20 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ),
     "DEFAULT_THROTTLE_CLASSES": (
-        "accounts.throttling.LoginIPThrottle",
-        "accounts.throttling.LoginUserThrottle",
+        "accounts.throttling.EndpointIPRateThrottle",
+        "accounts.throttling.EndpointUserRateThrottle",
     ),
     "DEFAULT_THROTTLE_RATES": {
         "login_ip": os.getenv("AUTH_LOGIN_THROTTLE_IP", "10/min"),
         "login_user": os.getenv("AUTH_LOGIN_THROTTLE_USER", "5/min"),
+        "register_ip": os.getenv("AUTH_REGISTER_THROTTLE_IP", "5/min"),
+        "register_user": os.getenv("AUTH_REGISTER_THROTTLE_USER", "3/min"),
+        "password_reset_ip": os.getenv("AUTH_PASSWORD_RESET_THROTTLE_IP", "5/min"),
+        "password_reset_user": os.getenv("AUTH_PASSWORD_RESET_THROTTLE_USER", "3/min"),
+        "email_verify_ip": os.getenv("AUTH_EMAIL_VERIFY_THROTTLE_IP", "5/min"),
+        "email_verify_user": os.getenv("AUTH_EMAIL_VERIFY_THROTTLE_USER", "3/min"),
+        "upload_ip": os.getenv("UPLOAD_THROTTLE_IP", "20/hour"),
+        "upload_user": os.getenv("UPLOAD_THROTTLE_USER", "10/hour"),
     },
 }
 
