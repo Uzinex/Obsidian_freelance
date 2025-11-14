@@ -1,0 +1,4 @@
+# Автоматически назначает ответственных за изменения в соответствующих директориях
+backend/ @obsidian-backend
+frontend/ @obsidian-frontend
+docs/ @obsidian-lead
