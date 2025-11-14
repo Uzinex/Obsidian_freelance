@@ -51,15 +51,20 @@ def _client_ip(request) -> str:
 class AuthCookieMixin:
     def set_refresh_cookie(self, response: Response, token: str, expires_at) -> None:
         cookie = jwt_conf.JWT_REFRESH_COOKIE
+        cookie_kwargs = {
+            "path": cookie.path,
+            "secure": cookie.secure,
+            "httponly": cookie.httponly,
+            "samesite": cookie.samesite,
+        }
+        if expires_at is not None:
+            cookie_kwargs["expires"] = expires_at
+        else:
+            cookie_kwargs["max_age"] = jwt_conf.JWT_REFRESH_TTL_SECONDS
         response.set_cookie(
             cookie.name,
             token,
-            max_age=jwt_conf.JWT_REFRESH_TTL_SECONDS,
-            expires=expires_at,
-            path=cookie.path,
-            secure=cookie.secure,
-            httponly=cookie.httponly,
-            samesite=cookie.samesite,
+            **cookie_kwargs,
         )
 
     def clear_refresh_cookie(self, response: Response) -> None:
