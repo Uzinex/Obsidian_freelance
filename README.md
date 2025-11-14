@@ -10,6 +10,10 @@ frontend/  # Vite + React SPA
 venv/      # Локальное виртуальное окружение Python (не попадает в git)
 ```
 
+## Ветвление и релизы
+
+Стратегия ветвления описана в [docs/branching_strategy.md](docs/branching_strategy.md). Следуйте ей при создании новых веток и подготовке релизов.
+
 ## Backend (Django)
 
 ### Требования
