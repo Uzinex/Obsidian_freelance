@@ -191,6 +191,7 @@ REST_FRAMEWORK = {
         "accounts.permissions.RoleBasedAccessPermission",
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ),
+    "EXCEPTION_HANDLER": "obsidian_backend.exceptions.exception_handler",
     "DEFAULT_THROTTLE_CLASSES": (
         "accounts.throttling.EndpointIPRateThrottle",
         "accounts.throttling.EndpointUserRateThrottle",
