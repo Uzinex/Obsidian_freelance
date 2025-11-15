@@ -81,6 +81,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     # Third-party
+    "channels",
     "rest_framework",
     "corsheaders",
     "rest_framework.authtoken",
@@ -88,6 +89,7 @@ INSTALLED_APPS = [
     "accounts",
     "marketplace",
     "uploads",
+    "chat",
 ]
 
 MIDDLEWARE = [
@@ -106,6 +108,8 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "obsidian_backend.urls"
 
+ASGI_APPLICATION = "obsidian_backend.asgi.application"
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -122,6 +126,12 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "obsidian_backend.wsgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    }
+}
 
 
 # Database
@@ -213,6 +223,8 @@ REST_FRAMEWORK = {
         "email_verify_user": os.getenv("AUTH_EMAIL_VERIFY_THROTTLE_USER", "3/min"),
         "upload_ip": os.getenv("UPLOAD_THROTTLE_IP", "20/hour"),
         "upload_user": os.getenv("UPLOAD_THROTTLE_USER", "10/hour"),
+        "chat_message_ip": os.getenv("CHAT_MESSAGE_THROTTLE_IP", "60/min"),
+        "chat_message_user": os.getenv("CHAT_MESSAGE_THROTTLE_USER", "30/min"),
     },
 }
 
@@ -233,6 +245,11 @@ CHAT_PRESENCE_ENABLED = communications_flags.is_feature_enabled("chat.presence")
 DISPUTE_ENABLED = communications_flags.is_feature_enabled("dispute.enabled")
 NOTIFY_EMAIL_ENABLED = communications_flags.is_feature_enabled("notify.email")
 NOTIFY_WEBPUSH_ENABLED = communications_flags.is_feature_enabled("notify.webpush")
+
+CHAT_RATE_LIMIT_USER_PER_SECOND = int(os.getenv("CHAT_RATE_LIMIT_USER_PER_SECOND", "5"))
+CHAT_RATE_LIMIT_USER_PER_MINUTE = int(os.getenv("CHAT_RATE_LIMIT_USER_PER_MINUTE", "30"))
+CHAT_RATE_LIMIT_THREAD_PER_SECOND = int(os.getenv("CHAT_RATE_LIMIT_THREAD_PER_SECOND", "8"))
+CHAT_RATE_LIMIT_THREAD_PER_MINUTE = int(os.getenv("CHAT_RATE_LIMIT_THREAD_PER_MINUTE", "60"))
 
 CORS_ENV_ORIGINS = {
     "dev": [
