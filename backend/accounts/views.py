@@ -207,9 +207,6 @@ class VerificationRequestViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
 
     def perform_create(self, serializer):
-        profile = serializer.validated_data.get("profile")
-        if profile.user != self.request.user:
-            raise permissions.PermissionDenied("You can only verify your own profile.")
         serializer.save()
 
     @action(detail=True, methods=["post"], permission_classes=[IsVerificationAdmin])
