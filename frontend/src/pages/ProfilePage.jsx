@@ -7,9 +7,6 @@ import {
   upsertProfile,
   logout as logoutRequest,
   applyAuthToken,
-  fetchNotifications,
-  markNotificationRead,
-  markAllNotificationsRead,
   fetchWallet,
   depositWallet,
   withdrawWallet,
@@ -20,6 +17,7 @@ import {
 } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import SkillSelector from '../components/SkillSelector.jsx';
+import NotificationCenter from '../components/notifications/NotificationCenter.jsx';
 import { formatCurrency } from '../utils/formatCurrency.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -83,7 +81,6 @@ export default function ProfilePage() {
   const [avatarPreview, setAvatarPreview] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
   const [wallet, setWallet] = useState(null);
-  const [notifications, setNotifications] = useState([]);
   const [contracts, setContracts] = useState([]);
   const [walletMessage, setWalletMessage] = useState('');
   const [walletError, setWalletError] = useState('');
@@ -129,14 +126,11 @@ export default function ProfilePage() {
     async function loadSupplementaryData() {
       if (!token) return;
       try {
-        const [walletData, notificationData, contractData] = await Promise.all([
+        const [walletData, contractData] = await Promise.all([
           fetchWallet({ limit: 10 }),
-          fetchNotifications(),
           fetchContracts(),
         ]);
         setWallet(walletData);
-        const notificationList = notificationData.results || notificationData;
-        setNotifications(Array.isArray(notificationList) ? notificationList : []);
         const contractList = contractData.results || contractData;
         setContracts(Array.isArray(contractList) ? contractList : []);
       } catch (supplementaryError) {
@@ -268,26 +262,6 @@ export default function ProfilePage() {
     }
   };
 
-  const handleNotificationMark = async (id) => {
-    try {
-      const updated = await markNotificationRead(id);
-      setNotifications((prev) =>
-        prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)),
-      );
-    } catch (err) {
-      console.error('Не удалось отметить уведомление как прочитанное', err);
-    }
-  };
-
-  const handleNotificationMarkAll = async () => {
-    try {
-      await markAllNotificationsRead();
-      setNotifications((prev) => prev.map((item) => ({ ...item, is_read: true })));
-    } catch (err) {
-      console.error('Не удалось отметить все уведомления', err);
-    }
-  };
-
   const handleContractSign = async (id) => {
     try {
       setContractError('');
@@ -334,7 +308,6 @@ export default function ProfilePage() {
   const summarySkills = profile?.skill_details || [];
   const displayName = composeName(profile?.user || user);
   const roleLabel = roleOptions.find((option) => option.value === profile?.role)?.label;
-  const unreadNotifications = notifications.filter((item) => !item.is_read).length;
 
   return (
     <div className="profile-page">
@@ -511,43 +484,7 @@ export default function ProfilePage() {
       </section>
 
       <section className="card notifications-card">
-        <div className="notifications-header">
-          <h2>Уведомления</h2>
-          <button
-            type="button"
-            className="button ghost"
-            onClick={handleNotificationMarkAll}
-            disabled={!unreadNotifications}
-          >
-            Отметить все прочитанными
-          </button>
-        </div>
-        {notifications.length ? (
-          <ul className="notifications-list">
-            {notifications.map((item) => (
-              <li key={item.id} className={item.is_read ? 'read' : 'unread'}>
-                <div>
-                  <h3>{item.title}</h3>
-                  <p>{item.message}</p>
-                  <span className="notification-meta">
-                    {new Date(item.created_at).toLocaleString('ru-RU')}
-                  </span>
-                </div>
-                {!item.is_read && (
-                  <button
-                    type="button"
-                    className="button ghost"
-                    onClick={() => handleNotificationMark(item.id)}
-                  >
-                    Прочитано
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="subtle">Уведомлений пока нет.</p>
-        )}
+        <NotificationCenter />
       </section>
 
       <section className="card contracts-card">

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Mapping, MutableMapping
+from typing import Any, Mapping, Sequence
 
-from .models import Notification, Profile
+from notifications.models import NotificationEvent
+from notifications.services import notification_hub
+
+from .models import Profile
 
 
 def create_notification(
@@ -10,14 +13,21 @@ def create_notification(
     *,
     title: str,
     message: str,
-    category: str = Notification.CATEGORY_GENERAL,
+    category: str = NotificationEvent.CATEGORY_ACCOUNT,
+    event_type: str = NotificationEvent.EventType.ACCOUNT_GENERIC,
     data: Mapping[str, Any] | None = None,
-) -> Notification:
-    """Helper to create and persist notifications in a consistent way."""
+    channels: Sequence[str] | None = None,
+) -> NotificationEvent:
+    """Bridge helper that proxies legacy calls to the notification hub."""
 
-    payload: MutableMapping[str, Any] = {"profile": profile, "title": title, "message": message}
-    if category:
-        payload["category"] = category
-    if data:
-        payload["data"] = dict(data)
-    return Notification.objects.create(**payload)
+    emitted = notification_hub.emit(
+        recipient=profile.user,
+        profile=profile,
+        title=title,
+        body=message,
+        category=category,
+        event_type=event_type,
+        data=data or {},
+        channels=channels,
+    )
+    return emitted.event

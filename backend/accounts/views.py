@@ -6,11 +6,12 @@ from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from notifications.models import NotificationEvent
+
 from .audit import audit_logger
-from .models import AuditEvent, Notification, Profile, VerificationRequest, Wallet
+from .models import AuditEvent, Profile, VerificationRequest, Wallet
 from .permissions import IsVerificationAdmin
 from .serializers import (
-    NotificationSerializer,
     ProfileSerializer,
     RegistrationSerializer,
     VerificationRequestSerializer,
@@ -81,29 +82,6 @@ class ProfileViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
-    serializer_class = NotificationSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        return Notification.objects.filter(
-            profile__user=self.request.user
-        ).order_by("-created_at")
-
-    @action(detail=True, methods=["post"])
-    def mark_read(self, request, pk=None):
-        notification = self.get_object()
-        notification.mark_as_read()
-        serializer = self.get_serializer(notification)
-        return Response(serializer.data)
-
-    @action(detail=False, methods=["post"])
-    def mark_all_read(self, request):
-        queryset = self.get_queryset().filter(is_read=False)
-        updated = queryset.update(is_read=True, read_at=timezone.now())
-        return Response({"updated": updated})
-
-
 class WalletViewSet(viewsets.GenericViewSet):
     serializer_class = WalletSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -154,7 +132,9 @@ class WalletViewSet(viewsets.GenericViewSet):
             wallet.profile,
             title="Пополнение кошелька",
             message=f"На ваш баланс зачислено {amount_decimal} {wallet.currency}.",
-            category=Notification.CATEGORY_FINANCE,
+            category=NotificationEvent.CATEGORY_PAYMENTS,
+            event_type=NotificationEvent.EventType.PAYMENTS_RELEASE,
+            data={"amount": str(amount_decimal), "currency": wallet.currency},
         )
         serializer = self.get_serializer(wallet)
         return Response(serializer.data)
@@ -175,7 +155,9 @@ class WalletViewSet(viewsets.GenericViewSet):
             wallet.profile,
             title="Списание с кошелька",
             message=f"С вашего баланса списано {amount_decimal} {wallet.currency}.",
-            category=Notification.CATEGORY_FINANCE,
+            category=NotificationEvent.CATEGORY_PAYMENTS,
+            event_type=NotificationEvent.EventType.PAYMENTS_HOLD,
+            data={"amount": str(amount_decimal), "currency": wallet.currency},
         )
         serializer = self.get_serializer(wallet)
         return Response(serializer.data)
@@ -236,7 +218,8 @@ class VerificationRequestViewSet(viewsets.ModelViewSet):
             profile,
             title="Верификация одобрена",
             message="Администратор подтвердил вашу заявку на верификацию профиля.",
-            category=Notification.CATEGORY_VERIFICATION,
+            category=NotificationEvent.CATEGORY_ACCOUNT,
+            event_type=NotificationEvent.EventType.ACCOUNT_GENERIC,
         )
         serializer = self.get_serializer(verification)
         return Response(serializer.data)
@@ -268,7 +251,8 @@ class VerificationRequestViewSet(viewsets.ModelViewSet):
             profile,
             title="Верификация отклонена",
             message="Администратор отклонил заявку на верификацию. Проверьте комментарий и подайте новую заявку.",
-            category=Notification.CATEGORY_VERIFICATION,
+            category=NotificationEvent.CATEGORY_ACCOUNT,
+            event_type=NotificationEvent.EventType.ACCOUNT_GENERIC,
         )
         serializer = self.get_serializer(verification)
         return Response(serializer.data)

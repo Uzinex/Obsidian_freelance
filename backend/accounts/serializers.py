@@ -14,7 +14,6 @@ from marketplace.models import Skill
 from .models import (
     AuditEvent,
     AuthSession,
-    Notification,
     OneTimeToken,
     Profile,
     User,
@@ -441,24 +440,6 @@ class WalletSerializer(serializers.ModelSerializer):
         limit = self.context.get("transaction_limit", 10)
         queryset = obj.transactions.all()[:limit]
         return WalletTransactionSerializer(queryset, many=True).data
-
-
-class NotificationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Notification
-        fields = (
-            "id",
-            "title",
-            "message",
-            "category",
-            "data",
-            "is_read",
-            "created_at",
-            "read_at",
-        )
-        read_only_fields = fields
-
-
 class VerificationRequestSerializer(serializers.ModelSerializer):
     profile = serializers.PrimaryKeyRelatedField(read_only=True)
     profile_details = ProfileSerializer(source="profile", read_only=True)

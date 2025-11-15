@@ -10,6 +10,7 @@ known_first_party = [
   "accounts",
   "marketplace",
   "obsidian_backend",
+  "notifications",
 ]
 combine_as_imports = true
 
@@ -35,7 +36,7 @@ fixable = ["ALL"]
 per-file-ignores = {"*/migrations/*.py" = ["E501", "DJ001"]}
 
 [tool.ruff.lint.isort]
-known-first-party = ["accounts", "marketplace", "obsidian_backend"]
+known-first-party = ["accounts", "marketplace", "obsidian_backend", "notifications"]
 combine-as-imports = true
 
 [tool.ruff.format]

@@ -260,46 +260,6 @@ class WalletTransaction(models.Model):
         return f"{self.wallet.profile.user.nickname}: {self.amount} ({self.type})"
 
 
-class Notification(models.Model):
-    CATEGORY_APPLICATION = "application"
-    CATEGORY_CONTRACT = "contract"
-    CATEGORY_VERIFICATION = "verification"
-    CATEGORY_FINANCE = "finance"
-    CATEGORY_GENERAL = "general"
-    CATEGORY_CHOICES = [
-        (CATEGORY_APPLICATION, "Order application"),
-        (CATEGORY_CONTRACT, "Contract"),
-        (CATEGORY_VERIFICATION, "Verification"),
-        (CATEGORY_FINANCE, "Finance"),
-        (CATEGORY_GENERAL, "General"),
-    ]
-
-    profile = models.ForeignKey(
-        Profile, on_delete=models.CASCADE, related_name="notifications"
-    )
-    title = models.CharField(max_length=255)
-    message = models.TextField()
-    category = models.CharField(
-        max_length=32, choices=CATEGORY_CHOICES, default=CATEGORY_GENERAL
-    )
-    data = models.JSONField(blank=True, default=dict)
-    is_read = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    read_at = models.DateTimeField(blank=True, null=True)
-
-    class Meta:
-        ordering = ["-created_at"]
-
-    def mark_as_read(self) -> None:
-        if not self.is_read:
-            self.is_read = True
-            self.read_at = timezone.now()
-            self.save(update_fields=["is_read", "read_at"])
-
-    def __str__(self) -> str:  # pragma: no cover - simple data representation
-        return f"Notification({self.profile.user.nickname}: {self.title})"
-
-
 class VerificationRequest(models.Model):
     DOCUMENT_DRIVER_LICENSE = "driver_license"
     DOCUMENT_PASSPORT = "passport"
