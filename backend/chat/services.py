@@ -17,6 +17,8 @@ from marketplace.models import Contract
 from uploads.scanner import scan_bytes
 from uploads.validators import detect_mime_type, scrub_exif_if_image
 
+from moderation.services import apply_red_flag_detection, enforce_chat_safety
+
 from .exceptions import ChatBlockedError, ChatRateLimitError
 from .models import ChatAttachment, ChatMessage, ChatThread, profile_id_matches, _LINK_PATTERN
 
@@ -133,6 +135,7 @@ def create_message(
     if not normalized_body and not attachments:
         raise ValidationError("Нельзя отправить пустое сообщение")
     contains_link = bool(_LINK_PATTERN.search(normalized_body)) if normalized_body else False
+    shadow_ban = enforce_chat_safety(thread=thread, sender=sender)
     message = ChatMessage.objects.create(
         thread=thread,
         sender=sender,
@@ -140,11 +143,13 @@ def create_message(
         has_attachments=bool(attachments),
         contains_link=contains_link,
         action=action or "",
+        is_shadow_blocked=shadow_ban,
     )
     for attachment in attachments:
         attachment.attach_to_message(message)
     thread.last_message_at = message.sent_at
     thread.save(update_fields=["last_message_at", "updated_at"])
+    apply_red_flag_detection(message)
     return message
 
 

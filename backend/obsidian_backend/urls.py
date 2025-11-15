@@ -25,4 +25,6 @@ urlpatterns = [
     path("api/marketplace/", include("marketplace.urls")),
     path("api/uploads/", include("uploads.urls")),
     path("api/chat/", include("chat.urls")),
+    path("api/moderation/", include("moderation.urls")),
+    path("api/disputes/", include("disputes.urls")),
 ]

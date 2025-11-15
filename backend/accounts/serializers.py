@@ -242,6 +242,7 @@ class ProfileSerializer(serializers.ModelSerializer):
     )
     wallet = serializers.SerializerMethodField()
     contracts = serializers.SerializerMethodField()
+    staff_roles = serializers.SerializerMethodField()
     NULLABLE_STRING_FIELDS = {
         "freelancer_type",
         "company_name",
@@ -280,6 +281,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             "is_verified",
             "wallet",
             "contracts",
+            "staff_roles",
             "created_at",
             "updated_at",
         )
@@ -290,6 +292,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             "updated_at",
             "wallet",
             "contracts",
+            "staff_roles",
         )
 
     def __init__(self, *args, **kwargs):
@@ -363,6 +366,11 @@ class ProfileSerializer(serializers.ModelSerializer):
             return None
         serializer = WalletSerializer(wallet, context=self.context)
         return serializer.data
+
+    def get_staff_roles(self, instance: Profile):
+        from accounts import rbac
+
+        return sorted(rbac.get_user_roles(instance.user))
 
     def get_contracts(self, instance: Profile):
         from marketplace.models import Contract

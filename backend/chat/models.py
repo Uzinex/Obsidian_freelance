@@ -88,6 +88,17 @@ class ChatMessageQuerySet(models.QuerySet):
     def visible(self):
         return self.filter(is_deleted=False, is_hidden=False)
 
+    def visible_for_user(self, user):
+        qs = self.filter(is_deleted=False)
+        if getattr(user, "is_staff", False) or getattr(user, "is_superuser", False):
+            return qs
+        if not getattr(user, "is_authenticated", False):
+            return qs.none()
+        return qs.filter(
+            models.Q(is_hidden=False)
+            | models.Q(is_shadow_blocked=True, sender=user)
+        )
+
     def with_tag(self, tag: str | None):
         if not tag:
             return self
@@ -132,6 +143,7 @@ class ChatMessage(models.Model):
         on_delete=models.SET_NULL,
         related_name="moderated_chat_messages",
     )
+    is_shadow_blocked = models.BooleanField(default=False)
 
     objects = ChatMessageQuerySet.as_manager()
 

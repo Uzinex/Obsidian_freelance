@@ -13,6 +13,13 @@ const QUICK_ACTIONS = [
   { id: 'open_dispute', label: 'Открыть спор' },
 ];
 
+const REPORT_CATEGORIES = [
+  { id: 'fraud', label: 'Мошенничество' },
+  { id: 'banned_payment', label: 'Запрещённые реквизиты' },
+  { id: 'abuse', label: 'Оскорбления' },
+  { id: 'spam', label: 'Спам/реклама' },
+];
+
 const QUICK_ACTION_LABELS = QUICK_ACTIONS.reduce((acc, action) => {
   acc[action.id] = action.label;
   return acc;
@@ -32,6 +39,7 @@ export default function ContractChat({
   apiBaseUrl = '/api/chat',
   wsBaseUrl = `ws://${window.location.host}/ws/chat`,
   presenceEnabled = false,
+  currentUserId,
 }) {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
@@ -43,6 +51,10 @@ export default function ContractChat({
   const [error, setError] = useState(null);
   const [attachments, setAttachments] = useState([]);
   const fileInputRef = useRef(null);
+  const [reportingMessageId, setReportingMessageId] = useState(null);
+  const [reportCategory, setReportCategory] = useState(REPORT_CATEGORIES[0].id);
+  const [reportComment, setReportComment] = useState('');
+  const [reportSuccess, setReportSuccess] = useState('');
 
   const authHeaders = useMemo(() => ({
     Authorization: authToken ? `Bearer ${authToken}` : undefined,
@@ -228,6 +240,21 @@ export default function ContractChat({
     }
   };
 
+  const submitReport = async (messageId) => {
+    try {
+      await fetchJson(`/contracts/${contractId}/messages/${messageId}/reports/`, {
+        method: 'POST',
+        body: JSON.stringify({ category: reportCategory, comment: reportComment }),
+      });
+      setReportSuccess('Жалоба отправлена модераторам');
+      setReportingMessageId(null);
+      setReportComment('');
+    } catch (err) {
+      console.error('Failed to submit report', err);
+      setError('Не удалось отправить жалобу');
+    }
+  };
+
   const emptyStateLabel = useMemo(() => {
     if (messages.length === 0) {
       if (connectionState === 'offline') return EMPTY_STATE.offline;
@@ -253,9 +280,11 @@ export default function ContractChat({
       </header>
       <div className="chat-messages" role="log" aria-live="polite" aria-busy={connectionState === 'connecting'}>
         {emptyStateLabel && <p className="chat-empty-state">{emptyStateLabel}</p>}
-        {messages.map((message) => (
-          <article key={message.id} className={`chat-message ${message.sender_id ? '' : 'chat-message-system'}`} tabIndex={0}>
-            <p className="chat-message-body">{message.body}</p>
+        {messages.map((message) => {
+          const isOwnMessage = currentUserId && message.sender_id === currentUserId;
+          return (
+            <article key={message.id} className={`chat-message ${message.sender_id ? '' : 'chat-message-system'}`} tabIndex={0}>
+              <p className="chat-message-body">{message.body}</p>
             {message.attachments?.length > 0 && (
               <ul className="chat-attachments" aria-label="Вложения">
                 {message.attachments.map((attachment) => (
@@ -272,11 +301,42 @@ export default function ContractChat({
                 {STATUS_LABELS[message.status].icon} {STATUS_LABELS[message.status].label}
               </span>
             )}
+              {!isOwnMessage && message.sender_id && (
+                <button type="button" className="report-link" onClick={() => {
+                  setReportingMessageId(message.id);
+                  setReportCategory(REPORT_CATEGORIES[0].id);
+                  setReportComment('');
+                }}>
+                  Пожаловаться
+                </button>
+              )}
+              {reportingMessageId === message.id && (
+                <form className="report-form" onSubmit={(event) => { event.preventDefault(); submitReport(message.id); }}>
+                  <label>
+                    Категория
+                    <select value={reportCategory} onChange={(event) => setReportCategory(event.target.value)}>
+                      {REPORT_CATEGORIES.map((category) => (
+                        <option key={category.id} value={category.id}>{category.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Комментарий
+                    <textarea value={reportComment} onChange={(event) => setReportComment(event.target.value)} placeholder="Опишите нарушение" />
+                  </label>
+                  <div className="report-actions">
+                    <button type="submit" className="primary">Отправить</button>
+                    <button type="button" onClick={() => setReportingMessageId(null)}>Отмена</button>
+                  </div>
+                </form>
+              )}
           </article>
-        ))}
+          );
+        })}
       </div>
       <footer className="chat-composer">
         {error && <p className="chat-error" role="alert">{error}</p>}
+        {reportSuccess && <p className="chat-success" role="status">{reportSuccess}</p>}
         <div className="chat-quick-actions" role="group" aria-label="Быстрые действия">
           {QUICK_ACTIONS.map((action) => (
             <button key={action.id} type="button" onClick={() => sendQuickAction(action.id)}>

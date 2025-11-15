@@ -90,6 +90,8 @@ INSTALLED_APPS = [
     "marketplace",
     "uploads",
     "chat",
+    "moderation",
+    "disputes",
 ]
 
 MIDDLEWARE = [
