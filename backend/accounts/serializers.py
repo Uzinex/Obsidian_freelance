@@ -452,7 +452,7 @@ class NotificationSerializer(serializers.ModelSerializer):
 
 
 class VerificationRequestSerializer(serializers.ModelSerializer):
-    profile = serializers.PrimaryKeyRelatedField(queryset=Profile.objects.all())
+    profile = serializers.PrimaryKeyRelatedField(queryset=Profile.objects.all(), read_only=True)
     profile_details = ProfileSerializer(source="profile", read_only=True)
     reviewer = UserSerializer(source="reviewed_by", read_only=True)
 
@@ -481,18 +481,45 @@ class VerificationRequestSerializer(serializers.ModelSerializer):
             "profile_details",
         )
 
+    def _get_profile(self) -> Profile:
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not getattr(user, "is_authenticated", False):
+            raise serializers.ValidationError(
+                {
+                    "detail": [
+                        _("Authentication credentials were not provided."),
+                    ]
+                }
+            )
+        try:
+            return user.profile
+        except Profile.DoesNotExist as exc:
+            raise serializers.ValidationError(
+                {
+                    "profile": [
+                        _(
+                            "Перед отправкой заявки заполните профиль пользователя."
+                        )
+                    ]
+                }
+            ) from exc
+
     def validate(self, attrs):
-        profile = attrs["profile"]
+        profile = self._get_profile()
         if profile.verification_requests.filter(
             status=VerificationRequest.STATUS_PENDING
         ).exists():
             raise serializers.ValidationError(
                 {
                     "non_field_errors": [
-                        "У вас уже есть заявка на рассмотрении. Дождитесь решения администратора.",
+                        _(
+                            "У вас уже есть заявка на рассмотрении. Дождитесь решения администратора."
+                        )
                     ]
                 }
             )
+        attrs["profile"] = profile
         return attrs
 
     def create(self, validated_data):

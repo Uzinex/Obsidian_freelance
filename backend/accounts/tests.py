@@ -1,6 +1,7 @@
 from datetime import timedelta
 from decimal import Decimal
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -10,7 +11,7 @@ from marketplace.models import Category, Order, Skill
 
 from obsidian_backend import jwt_settings as jwt_conf
 
-from .models import Profile, User
+from .models import Profile, User, VerificationRequest
 
 
 class ProfileSerializerTests(APITestCase):
@@ -190,3 +191,76 @@ class LoginViewTests(APITestCase):
         self.assertLessEqual(len(device_id), 128)
         cookie = response.cookies.get(jwt_conf.JWT_REFRESH_COOKIE.name)
         self.assertIsNotNone(cookie)
+
+
+class VerificationRequestViewSetTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            nickname="verifyuser",
+            email="verify@example.com",
+            password="StrongPass123!",
+            first_name="Verify",
+            last_name="User",
+        )
+        self.profile = Profile.objects.create(
+            user=self.user,
+            role=Profile.ROLE_FREELANCER,
+        )
+        self.client.force_authenticate(user=self.user)
+
+    def _make_document(self) -> SimpleUploadedFile:
+        png_bytes = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+            b"\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0bIDATx\x9cc`\x00\x00\x00\x02"
+            b"\x00\x01\xe2!\xbc3\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+        return SimpleUploadedFile(
+            "document.png",
+            png_bytes,
+            content_type="image/png",
+        )
+
+    def test_create_verification_uses_authenticated_profile(self):
+        payload = {
+            "document_type": VerificationRequest.DOCUMENT_PASSPORT,
+            "document_series": "AB",
+            "document_number": "1234567",
+            "document_image": self._make_document(),
+        }
+
+        response = self.client.post(
+            reverse("verification-list"),
+            data=payload,
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["profile"], self.profile.id)
+        self.assertTrue(
+            VerificationRequest.objects.filter(
+                profile=self.profile, status=VerificationRequest.STATUS_PENDING
+            ).exists()
+        )
+
+    def test_rejects_duplicate_pending_request(self):
+        VerificationRequest.objects.create(
+            profile=self.profile,
+            document_type=VerificationRequest.DOCUMENT_PASSPORT,
+            document_series="AB",
+            document_number="7654321",
+            document_image=self._make_document(),
+        )
+
+        response = self.client.post(
+            reverse("verification-list"),
+            data={
+                "document_type": VerificationRequest.DOCUMENT_PASSPORT,
+                "document_series": "AB",
+                "document_number": "1234567",
+                "document_image": self._make_document(),
+            },
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("non_field_errors", response.data)
