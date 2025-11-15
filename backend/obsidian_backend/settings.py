@@ -284,7 +284,7 @@ ADMIN_REQUIRE_ROLES_2FA = {"staff", "moderator", "finance"}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-VERIFICATION_ADMIN_EMAIL = os.getenv("VERIFICATION_ADMIN_EMAIL", "")
+VERIFICATION_ADMIN_EMAIL = os.getenv("VERIFICATION_ADMIN_EMAIL", "fdilov1@gmail.com").lower()
 
 
 SENTRY_DSN = os.getenv("SENTRY_DSN")
