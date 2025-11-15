@@ -17,6 +17,19 @@ class JWTAuthentication(authentication.BaseAuthentication):
 
     keyword = "Bearer"
 
+    def authenticate_header(self, request):
+        """Return the ``WWW-Authenticate`` header value for failed auth.
+
+        DRF downgrades authentication errors to ``403 Forbidden`` responses
+        when the authenticator does not provide a value for the
+        ``WWW-Authenticate`` header.  Returning the keyword here ensures that
+        callers receive a proper ``401 Unauthorized`` response, allowing
+        clients to refresh or discard invalid tokens instead of treating the
+        failure as a permission error.
+        """
+
+        return self.keyword
+
     def authenticate(self, request) -> Optional[Tuple[object, dict]]:
         auth = authentication.get_authorization_header(request).decode("utf-8")
         if not auth:
