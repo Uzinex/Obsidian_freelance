@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.conf import settings
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import filters, permissions, serializers, status, viewsets
@@ -233,6 +234,7 @@ class ContractViewSet(viewsets.ReadOnlyModelViewSet):
         "complete": "contracts:edit",
         "request_termination": "contracts:edit",
         "approve_termination": "finance:manage",
+        "communications": "contracts:view",
     }
 
     def get_queryset(self):
@@ -398,3 +400,37 @@ class ContractViewSet(viewsets.ReadOnlyModelViewSet):
         )
         serializer = self.get_serializer(contract)
         return Response(serializer.data)
+
+    @action(
+        detail=True,
+        methods=["get"],
+        permission_classes=[permissions.IsAuthenticated, RoleBasedAccessPermission],
+    )
+    def communications(self, request, pk=None):
+        contract = self.get_object()
+        dispute_allowed_statuses = {
+            Contract.STATUS_PENDING,
+            Contract.STATUS_ACTIVE,
+            Contract.STATUS_COMPLETED,
+            Contract.STATUS_TERMINATION_REQUESTED,
+        }
+        dispute_enabled = settings.DISPUTE_ENABLED and (
+            contract.status in dispute_allowed_statuses
+        )
+        payload = {
+            "contract_id": contract.id,
+            "chat": {
+                "enabled": settings.CHAT_ENABLED,
+                "attachments": settings.CHAT_ATTACHMENTS_ENABLED,
+                "presence": settings.CHAT_PRESENCE_ENABLED,
+            },
+            "dispute": {
+                "enabled": dispute_enabled,
+                "requires_contract": True,
+            },
+            "notifications": {
+                "email": settings.NOTIFY_EMAIL_ENABLED,
+                "webpush": settings.NOTIFY_WEBPUSH_ENABLED,
+            },
+        }
+        return Response(payload)

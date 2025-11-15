@@ -15,6 +15,7 @@ from pathlib import Path
 
 import dj_database_url
 
+from . import feature_flags as communications_flags
 from . import jwt_settings as jwt_conf
 
 try:  # pragma: no cover - optional dependency handling
@@ -223,6 +224,16 @@ if jwt_conf.FEATURE_FLAGS.get("auth.token_legacy", False):
 
 AUTH_REQUIRE_2FA_FOR_STAFF = jwt_conf.FEATURE_FLAGS.get("auth.2fa", False)
 
+COMMUNICATION_FEATURE_FLAGS = communications_flags.FEATURE_FLAGS
+CHAT_ENABLED = communications_flags.is_feature_enabled("chat.enabled")
+CHAT_ATTACHMENTS_ENABLED = communications_flags.is_feature_enabled(
+    "chat.attachments"
+)
+CHAT_PRESENCE_ENABLED = communications_flags.is_feature_enabled("chat.presence")
+DISPUTE_ENABLED = communications_flags.is_feature_enabled("dispute.enabled")
+NOTIFY_EMAIL_ENABLED = communications_flags.is_feature_enabled("notify.email")
+NOTIFY_WEBPUSH_ENABLED = communications_flags.is_feature_enabled("notify.webpush")
+
 CORS_ENV_ORIGINS = {
     "dev": [
         "http://localhost:3000",
@@ -298,7 +309,10 @@ SENTRY_ENVIRONMENT = os.getenv("SENTRY_ENVIRONMENT", "dev")
 SENTRY_RELEASE = os.getenv("SENTRY_RELEASE") or "TODO_SET_RELEASE"
 
 
-FEATURE_FLAGS = jwt_conf.FEATURE_FLAGS
+FEATURE_FLAGS = {
+    **jwt_conf.FEATURE_FLAGS,
+    **dict(COMMUNICATION_FEATURE_FLAGS),
+}
 
 JWT_SETTINGS = {
     "environment": jwt_conf.JWT_ENVIRONMENT,
