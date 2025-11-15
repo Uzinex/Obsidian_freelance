@@ -920,6 +920,101 @@ textarea:focus {
   margin: 0 0 0.5rem;
 }
 
+.notification-center {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.notification-center__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.notification-center__actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.notification-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: flex-end;
+}
+
+.notification-filters label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.notification-filters select {
+  margin-top: 0.35rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #cbd5f5;
+  border-radius: 0.6rem;
+  background: #fff;
+}
+
+.notification-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.notification-list li {
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.notification-list li.unread {
+  border-color: #6b4df5;
+  box-shadow: 0 0 0 1px rgba(107, 77, 245, 0.15);
+}
+
+.notification-list__meta {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.notification-list__channels {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.notification-list__time {
+  margin-left: auto;
+}
+
+.notification-list__actions {
+  margin-top: 0.4rem;
+}
+
+.notification-empty {
+  padding: 1.5rem;
+  border: 1px dashed #cbd5f5;
+  border-radius: 1rem;
+  text-align: center;
+  color: #475569;
+}
+
 .contract-item header {
   display: flex;
   align-items: center;
@@ -945,6 +1040,60 @@ textarea:focus {
 
 .contract-actions .button {
   padding: 0.5rem 1rem;
+}
+
+.notification-settings-page .preference-card {
+  margin-bottom: 1.5rem;
+}
+
+.notification-settings-page table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.notification-settings-page th,
+.notification-settings-page td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #edf2f7;
+  text-align: left;
+}
+
+.notification-settings-page th {
+  background: #f8fafc;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  color: #475569;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.channel-pill {
+  display: inline-flex;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(107, 77, 245, 0.15);
+  color: #4c1d95;
+  font-weight: 600;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.quiet-hours {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.quiet-hours input[type='time'] {
+  border: 1px solid #d0d7f0;
+  border-radius: 0.4rem;
+  padding: 0.35rem 0.45rem;
 }
 
 .person-info {

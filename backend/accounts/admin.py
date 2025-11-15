@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import Notification, Profile, User, VerificationRequest, Wallet, WalletTransaction
+from .models import Profile, User, VerificationRequest, Wallet, WalletTransaction
 
 
 @admin.register(User)
@@ -115,8 +115,3 @@ class WalletTransactionAdmin(admin.ModelAdmin):
     search_fields = ("wallet__profile__user__nickname",)
 
 
-@admin.register(Notification)
-class NotificationAdmin(admin.ModelAdmin):
-    list_display = ("profile", "title", "category", "is_read", "created_at")
-    list_filter = ("category", "is_read")
-    search_fields = ("profile__user__nickname", "title", "message")
