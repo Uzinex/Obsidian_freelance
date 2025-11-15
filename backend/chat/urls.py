@@ -19,6 +19,11 @@ urlpatterns = [
         name="chat-message-status",
     ),
     path(
+        "contracts/<int:contract_id>/messages/<int:message_id>/reports/",
+        views.ChatMessageReportView.as_view(),
+        name="chat-message-report",
+    ),
+    path(
         "contracts/<int:contract_id>/events/",
         views.ChatEventPollView.as_view(),
         name="chat-events",

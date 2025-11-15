@@ -46,6 +46,10 @@ export function AuthProvider({ children }) {
     return (user?.email || '').toLowerCase() === VERIFICATION_ADMIN_EMAIL;
   }, [user]);
 
+  const staffRoles = user?.profile?.staff_roles || [];
+  const isModerator = staffRoles.includes('moderator') || staffRoles.includes('staff');
+  const isFinance = staffRoles.includes('finance');
+
   const value = useMemo(
     () => ({
       token,
@@ -55,8 +59,11 @@ export function AuthProvider({ children }) {
       loading,
       isAuthenticated: Boolean(token),
       isVerificationAdmin,
+      staffRoles,
+      isModerator,
+      isFinance,
     }),
-    [token, user, loading, isVerificationAdmin],
+    [token, user, loading, isVerificationAdmin, staffRoles, isModerator, isFinance],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

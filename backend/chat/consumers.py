@@ -146,7 +146,10 @@ class ContractChatConsumer(AsyncJsonWebsocketConsumer):
         return serializer.data
 
     async def chat_message(self, event):
-        await self.send_json({"type": "message", "payload": event["payload"]})
+        payload = event["payload"]
+        if not self._can_view_payload(payload):
+            return
+        await self.send_json({"type": "message", "payload": payload})
 
     async def chat_status(self, event):
         await self.send_json({"type": "status", "payload": event["payload"]})
@@ -156,3 +159,12 @@ class ContractChatConsumer(AsyncJsonWebsocketConsumer):
 
     async def chat_typing(self, event):
         await self.send_json({"type": "typing", "payload": event})
+
+    def _can_view_payload(self, payload: dict) -> bool:
+        if not payload.get("is_shadow_blocked"):
+            return True
+        sender_id = payload.get("sender_id")
+        user = self.scope.get("user")
+        if sender_id == getattr(user, "id", None):
+            return True
+        return bool(getattr(user, "is_staff", False) or getattr(user, "is_superuser", False))

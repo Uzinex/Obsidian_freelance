@@ -16,6 +16,8 @@ import FreelancersPage from './pages/FreelancersPage.jsx';
 import VerificationPage from './pages/VerificationPage.jsx';
 import VerificationRequestsPage from './pages/VerificationRequestsPage.jsx';
 import AboutPage from './pages/AboutPage.jsx';
+import ModerationQueuePage from './pages/ModerationQueuePage.jsx';
+import DisputeBackofficePage from './pages/DisputeBackofficePage.jsx';
 
 export default function App() {
   const { token, user, login, isAuthenticated } = useAuth();
@@ -63,6 +65,12 @@ export default function App() {
           </Route>
           <Route element={<ProtectedRoute requireAdmin />}>
             <Route path="/verification/requests" element={<VerificationRequestsPage />} />
+          </Route>
+          <Route element={<ProtectedRoute requireStaffRole="moderator" />}>
+            <Route path="/staff/moderation" element={<ModerationQueuePage />} />
+          </Route>
+          <Route element={<ProtectedRoute requireStaffRole="finance" />}>
+            <Route path="/staff/disputes" element={<DisputeBackofficePage />} />
           </Route>
           <Route path="/freelancers" element={<FreelancersPage />} />
         </Routes>

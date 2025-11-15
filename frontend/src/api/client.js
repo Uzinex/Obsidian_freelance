@@ -153,3 +153,45 @@ export async function reviewVerificationRequest(id, action, payload = {}) {
   );
   return response.data;
 }
+
+export async function fetchModerationCases(params = {}) {
+  const response = await apiClient.get('moderation/cases/', { params });
+  return response.data;
+}
+
+export async function updateModerationCase(caseId, payload) {
+  const response = await apiClient.post(`moderation/cases/${caseId}/update/`, payload);
+  return response.data;
+}
+
+export async function fetchDisputeCases(params = {}) {
+  const response = await apiClient.get('disputes/cases/', { params });
+  return response.data;
+}
+
+export async function fetchDisputeCase(caseId) {
+  const response = await apiClient.get(`disputes/cases/${caseId}/`);
+  return response.data;
+}
+
+export async function openDispute(contractId, payload) {
+  const response = await apiClient.post(`disputes/contracts/${contractId}/`, payload);
+  return response.data;
+}
+
+export async function uploadDisputeEvidence(caseId, formData) {
+  const response = await apiClient.post(`disputes/cases/${caseId}/evidence/`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+}
+
+export async function updateDisputeStatus(caseId, payload) {
+  const response = await apiClient.post(`disputes/cases/${caseId}/status/`, payload);
+  return response.data;
+}
+
+export async function executeDisputeOutcome(caseId, payload) {
+  const response = await apiClient.post(`disputes/cases/${caseId}/outcome/`, payload);
+  return response.data;
+}

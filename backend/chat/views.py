@@ -14,6 +14,8 @@ from marketplace.models import Contract
 
 from .exceptions import ChatBlockedError, ChatRateLimitError
 from .models import ChatAttachmentLink, ChatMessage
+from moderation.serializers import ChatMessageReportSerializer
+
 from .serializers import (
     ChatAttachmentPresignSerializer,
     ChatAttachmentUploadSerializer,
@@ -72,7 +74,7 @@ class ContractChatMessagesView(ContractThreadMixin, generics.ListCreateAPIView):
     def get_queryset(self):
         thread = self.get_thread()
         queryset = (
-            ChatMessage.objects.visible()
+            ChatMessage.objects.visible_for_user(self.request.user)
             .filter(thread=thread)
             .select_related("sender")
             .prefetch_related("attachments")
@@ -130,7 +132,12 @@ class ChatEventPollView(ContractThreadMixin, APIView):
                     boundary = boundary.replace(tzinfo=timezone.utc)
             except ValueError:
                 boundary = None
-        qs = thread.messages.select_related("sender").prefetch_related("attachments")
+        qs = (
+            ChatMessage.objects.visible_for_user(request.user)
+            .filter(thread=thread)
+            .select_related("sender")
+            .prefetch_related("attachments")
+        )
         if boundary:
             qs = qs.filter(updated_at__gte=boundary)
         for message in qs:
@@ -206,3 +213,18 @@ class ChatAttachmentDownloadView(APIView):
         response["Content-Type"] = attachment.mime_type
         response["X-Content-Type-Options"] = "nosniff"
         return response
+
+
+class ChatMessageReportView(ContractThreadMixin, generics.CreateAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ChatMessageReportSerializer
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        thread = self.get_thread()
+        try:
+            message = thread.messages.get(pk=self.kwargs["message_id"])
+        except ChatMessage.DoesNotExist as exc:
+            raise Http404 from exc
+        context["message"] = message
+        return context

@@ -1,8 +1,8 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 
-export default function ProtectedRoute({ role, requireVerified = false, requireAdmin = false }) {
-  const { isAuthenticated, loading, user, isVerificationAdmin } = useAuth();
+export default function ProtectedRoute({ role, requireVerified = false, requireAdmin = false, requireStaffRole }) {
+  const { isAuthenticated, loading, user, isVerificationAdmin, staffRoles } = useAuth();
 
   if (loading) {
     return <div className="card">Загрузка...</div>;
@@ -18,6 +18,13 @@ export default function ProtectedRoute({ role, requireVerified = false, requireA
 
   if (requireAdmin && !isVerificationAdmin) {
     return <Navigate to="/" replace />;
+  }
+
+  if (requireStaffRole) {
+    const hasStaffRole = staffRoles?.includes(requireStaffRole) || staffRoles?.includes('staff');
+    if (!hasStaffRole) {
+      return <Navigate to="/" replace />;
+    }
   }
 
   if (requireVerified && !user?.profile?.is_verified) {

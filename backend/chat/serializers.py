@@ -38,6 +38,7 @@ class ChatMessageSerializer(serializers.ModelSerializer):
             "action",
             "tags",
             "attachments",
+            "is_shadow_blocked",
         ]
         read_only_fields = fields
 
