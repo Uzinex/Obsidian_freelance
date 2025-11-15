@@ -452,7 +452,7 @@ class NotificationSerializer(serializers.ModelSerializer):
 
 
 class VerificationRequestSerializer(serializers.ModelSerializer):
-    profile = serializers.PrimaryKeyRelatedField(queryset=Profile.objects.all(), read_only=True)
+    profile = serializers.PrimaryKeyRelatedField(read_only=True)
     profile_details = ProfileSerializer(source="profile", read_only=True)
     reviewer = UserSerializer(source="reviewed_by", read_only=True)
 
