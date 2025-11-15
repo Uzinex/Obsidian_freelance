@@ -187,8 +187,13 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "accounts.authentication.JWTAuthentication",
     ),
+    # Allow unauthenticated read-only access by default.
+    #
+    # Role-based authorization is still enforced explicitly on the views
+    # that require it (see marketplace and uploads apps), so keeping it
+    # out of the global defaults prevents public endpoints such as the
+    # skills catalogue from responding with HTTP 401 for anonymous users.
     "DEFAULT_PERMISSION_CLASSES": (
-        "accounts.permissions.RoleBasedAccessPermission",
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ),
     "EXCEPTION_HANDLER": "obsidian_backend.exceptions.exception_handler",
