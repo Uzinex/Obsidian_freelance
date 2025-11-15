@@ -44,18 +44,28 @@ export async function upsertProfile(data, id) {
   return response.data;
 }
 
-export async function fetchNotifications(params = {}) {
-  const response = await apiClient.get('accounts/notifications/', { params });
+export async function fetchNotificationEvents(params = {}) {
+  const response = await apiClient.get('notifications/events/', { params });
   return response.data;
 }
 
 export async function markNotificationRead(id) {
-  const response = await apiClient.post(`accounts/notifications/${id}/mark_read/`);
+  const response = await apiClient.post(`notifications/events/${id}/mark_read/`);
   return response.data;
 }
 
 export async function markAllNotificationsRead() {
-  const response = await apiClient.post('accounts/notifications/mark_all_read/');
+  const response = await apiClient.post('notifications/events/mark_all_read/');
+  return response.data;
+}
+
+export async function fetchNotificationPreferences() {
+  const response = await apiClient.get('notifications/preferences/');
+  return response.data;
+}
+
+export async function updateNotificationPreference(id, payload) {
+  const response = await apiClient.patch(`notifications/preferences/${id}/`, payload);
   return response.data;
 }
 

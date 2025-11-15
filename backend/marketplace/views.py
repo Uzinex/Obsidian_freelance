@@ -9,7 +9,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from accounts import rbac
-from accounts.models import Notification, Profile
+from accounts.models import Profile
+from notifications.models import NotificationEvent
 from accounts.permissions import RoleBasedAccessPermission
 from accounts.utils import create_notification
 from .models import Category, Contract, Order, OrderApplication, Skill
@@ -151,7 +152,8 @@ class OrderApplicationViewSet(viewsets.ModelViewSet):
             order.client,
             title="Новый отклик на заказ",
             message=f"{profile.user.nickname} откликнулся на заказ '{order.title}'.",
-            category=Notification.CATEGORY_APPLICATION,
+            category=NotificationEvent.CATEGORY_CONTRACT,
+            event_type=NotificationEvent.EventType.CONTRACT_APPLICATION_SUBMITTED,
             data={"order_id": order.id, "application_id": application.id},
         )
 
@@ -192,7 +194,8 @@ class OrderApplicationViewSet(viewsets.ModelViewSet):
             application.freelancer,
             title="Отклик одобрен",
             message=f"Заказчик одобрил ваш отклик на заказ '{application.order.title}'. Подпишите контракт, чтобы приступить к работе.",
-            category=Notification.CATEGORY_APPLICATION,
+            category=NotificationEvent.CATEGORY_CONTRACT,
+            event_type=NotificationEvent.EventType.CONTRACT_APPLICATION_DECISION,
             data={"order_id": application.order.id, "contract_id": contract.id},
         )
         serializer = self.get_serializer(application)
@@ -217,7 +220,8 @@ class OrderApplicationViewSet(viewsets.ModelViewSet):
             application.freelancer,
             title="Отклик отклонён",
             message=f"Заказчик отклонил ваш отклик на заказ '{application.order.title}'.",
-            category=Notification.CATEGORY_APPLICATION,
+            category=NotificationEvent.CATEGORY_CONTRACT,
+            event_type=NotificationEvent.EventType.CONTRACT_APPLICATION_DECISION,
             data={"order_id": application.order.id, "application_id": application.id},
         )
         serializer = self.get_serializer(application)
@@ -286,7 +290,8 @@ class ContractViewSet(viewsets.ReadOnlyModelViewSet):
             other_party,
             title="Подписание контракта",
             message=f"{role_text} подписал контракт по заказу '{contract.order.title}'.",
-            category=Notification.CATEGORY_CONTRACT,
+            category=NotificationEvent.CATEGORY_CONTRACT,
+            event_type=NotificationEvent.EventType.CONTRACT_SIGNED,
             data={"contract_id": contract.id, "order_id": contract.order.id},
         )
         if contract.status == Contract.STATUS_ACTIVE:
@@ -294,14 +299,16 @@ class ContractViewSet(viewsets.ReadOnlyModelViewSet):
                 contract.client,
                 title="Контракт активирован",
                 message=f"Контракт по заказу '{contract.order.title}' подписан обеими сторонами.",
-                category=Notification.CATEGORY_CONTRACT,
+                category=NotificationEvent.CATEGORY_CONTRACT,
+                event_type=NotificationEvent.EventType.CONTRACT_CREATED,
                 data={"contract_id": contract.id},
             )
             create_notification(
                 contract.freelancer,
                 title="Контракт активирован",
                 message=f"Контракт по заказу '{contract.order.title}' подписан обеими сторонами.",
-                category=Notification.CATEGORY_CONTRACT,
+                category=NotificationEvent.CATEGORY_CONTRACT,
+                event_type=NotificationEvent.EventType.CONTRACT_CREATED,
                 data={"contract_id": contract.id},
             )
         serializer = self.get_serializer(contract)
@@ -325,14 +332,20 @@ class ContractViewSet(viewsets.ReadOnlyModelViewSet):
             contract.freelancer,
             title="Выплата по контракту",
             message=f"Заказчик подтвердил выполнение заказа '{contract.order.title}'. {amount} {contract.currency} перечислены на ваш кошелёк.",
-            category=Notification.CATEGORY_FINANCE,
-            data={"contract_id": contract.id},
+            category=NotificationEvent.CATEGORY_PAYMENTS,
+            event_type=NotificationEvent.EventType.PAYMENTS_PAYOUT,
+            data={
+                "contract_id": contract.id,
+                "amount": str(amount),
+                "currency": contract.currency,
+            },
         )
         create_notification(
             contract.client,
             title="Заказ закрыт",
             message=f"Вы завершили заказ '{contract.order.title}'. Средства автоматически перечислены исполнителю.",
-            category=Notification.CATEGORY_CONTRACT,
+            category=NotificationEvent.CATEGORY_CONTRACT,
+            event_type=NotificationEvent.EventType.CONTRACT_COMPLETED,
             data={"contract_id": contract.id},
         )
         serializer = self.get_serializer(contract)
@@ -363,7 +376,8 @@ class ContractViewSet(viewsets.ReadOnlyModelViewSet):
             other_party,
             title="Запрос на расторжение",
             message=f"{actor_label} инициировал расторжение контракта по заказу '{contract.order.title}'. Ожидайте решение администрации.",
-            category=Notification.CATEGORY_CONTRACT,
+            category=NotificationEvent.CATEGORY_CONTRACT,
+            event_type=NotificationEvent.EventType.CONTRACT_TERMINATION_REQUESTED,
             data={"contract_id": contract.id},
         )
         serializer = self.get_serializer(contract)
@@ -388,15 +402,25 @@ class ContractViewSet(viewsets.ReadOnlyModelViewSet):
             contract.freelancer,
             title="Расторжение контракта",
             message=f"Администратор одобрил расторжение контракта по заказу '{contract.order.title}'. Вам выплачена компенсация {compensation_str}.",
-            category=Notification.CATEGORY_FINANCE,
-            data={"contract_id": contract.id},
+            category=NotificationEvent.CATEGORY_PAYMENTS,
+            event_type=NotificationEvent.EventType.PAYMENTS_PAYOUT,
+            data={
+                "contract_id": contract.id,
+                "amount": str(compensation),
+                "currency": contract.currency,
+            },
         )
         create_notification(
             contract.client,
             title="Расторжение контракта",
             message=f"Администратор одобрил расторжение контракта по заказу '{contract.order.title}'. С вашего кошелька списана компенсация {compensation_str}.",
-            category=Notification.CATEGORY_FINANCE,
-            data={"contract_id": contract.id},
+            category=NotificationEvent.CATEGORY_PAYMENTS,
+            event_type=NotificationEvent.EventType.PAYMENTS_RELEASE,
+            data={
+                "contract_id": contract.id,
+                "amount": str(compensation),
+                "currency": contract.currency,
+            },
         )
         serializer = self.get_serializer(contract)
         return Response(serializer.data)

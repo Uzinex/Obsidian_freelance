@@ -18,6 +18,7 @@ import VerificationRequestsPage from './pages/VerificationRequestsPage.jsx';
 import AboutPage from './pages/AboutPage.jsx';
 import ModerationQueuePage from './pages/ModerationQueuePage.jsx';
 import DisputeBackofficePage from './pages/DisputeBackofficePage.jsx';
+import NotificationSettingsPage from './pages/NotificationSettingsPage.jsx';
 
 export default function App() {
   const { token, user, login, isAuthenticated } = useAuth();
@@ -57,6 +58,7 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/verification" element={<VerificationPage />} />
+            <Route path="/settings/notifications" element={<NotificationSettingsPage />} />
           </Route>
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/orders/:orderId" element={<OrderDetailPage />} />

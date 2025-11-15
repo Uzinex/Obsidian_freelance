@@ -37,6 +37,11 @@ export default function Header() {
         label: 'Профиль',
         icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/user-male-circle.png',
       });
+      base.push({
+        to: '/settings/notifications',
+        label: 'Уведомления',
+        icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/appointment-reminders.png',
+      });
     }
 
     return base;

@@ -92,6 +92,7 @@ INSTALLED_APPS = [
     "chat",
     "moderation",
     "disputes",
+    "notifications",
 ]
 
 MIDDLEWARE = [

@@ -2,7 +2,6 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
-    NotificationViewSet,
     ProfileViewSet,
     RegisterView,
     VerificationRequestViewSet,
@@ -29,7 +28,6 @@ from .views_auth import (
 router = DefaultRouter()
 router.register("profiles", ProfileViewSet, basename="profile")
 router.register("verifications", VerificationRequestViewSet, basename="verification")
-router.register("notifications", NotificationViewSet, basename="notification")
 router.register("wallets", WalletViewSet, basename="wallet")
 
 urlpatterns = [
