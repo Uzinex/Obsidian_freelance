@@ -255,11 +255,19 @@ class Migration(migrations.Migration):
                 db_index=False, default=uuid.uuid4, max_length=160, unique=True
             ),
         ),
+        migrations.RunSQL(
+            "DROP INDEX IF EXISTS profile_languages_gin",
+            migrations.RunSQL.noop,
+        ),
         migrations.AddIndex(
             model_name="profile",
             index=django.contrib.postgres.indexes.GinIndex(
                 fields=["languages"], name="profile_languages_gin"
             ),
+        ),
+        migrations.RunSQL(
+            "DROP INDEX IF EXISTS profile_rate_idx",
+            migrations.RunSQL.noop,
         ),
         migrations.AddIndex(
             model_name="profile",
@@ -267,17 +275,29 @@ class Migration(migrations.Migration):
                 fields=["hourly_rate", "min_budget"], name="profile_rate_idx"
             ),
         ),
+        migrations.RunSQL(
+            "DROP INDEX IF EXISTS profile_verified_idx",
+            migrations.RunSQL.noop,
+        ),
         migrations.AddIndex(
             model_name="profile",
             index=models.Index(
                 fields=["is_verified", "visibility"], name="profile_verified_idx"
             ),
         ),
+        migrations.RunSQL(
+            "DROP INDEX IF EXISTS profile_last_activity_idx",
+            migrations.RunSQL.noop,
+        ),
         migrations.AddIndex(
             model_name="profile",
             index=models.Index(
                 fields=["last_activity_at"], name="profile_last_activity_idx"
             ),
+        ),
+        migrations.RunSQL(
+            "DROP INDEX IF EXISTS profile_slug_like_idx",
+            migrations.RunSQL.noop,
         ),
         migrations.AddIndex(
             model_name="profile",
