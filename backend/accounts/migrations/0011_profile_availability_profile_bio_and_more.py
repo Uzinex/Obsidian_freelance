@@ -185,6 +185,7 @@ def drop_legacy_profile_slug_unique_constraint(apps, schema_editor):
             JOIN pg_namespace n ON n.oid = t.relnamespace
             WHERE c.conname = %s AND t.relname = %s
             """
+            ,
             [constraint_name, "accounts_profile"],
         )
 
