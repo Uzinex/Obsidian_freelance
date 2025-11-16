@@ -5,6 +5,31 @@ import uuid
 from django.db import migrations, models
 
 
+def drop_legacy_profile_slug_index(apps, schema_editor):
+    """Drop the legacy LIKE index that may linger on older databases."""
+
+    index_name = "accounts_profile_slug_8a7a322e_like"
+    with schema_editor.connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT n.nspname
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relkind = 'i' AND c.relname = %s
+            """,
+            [index_name],
+        )
+        schemas = [row[0] for row in cursor.fetchall()]
+
+        for schema in schemas or [None]:
+            if schema:
+                cursor.execute(
+                    f'DROP INDEX IF EXISTS "{schema}"."{index_name}"'
+                )
+            else:
+                cursor.execute(f'DROP INDEX IF EXISTS {index_name}')
+
+
 def populate_profile_slugs(apps, schema_editor):
     Profile = apps.get_model("accounts", "Profile")
 
@@ -29,9 +54,8 @@ class Migration(migrations.Migration):
         # ``accounts_profile_slug_8a7a322e_like``) is already present. To keep
         # the migration idempotent we explicitly drop that leftover index if it
         # exists before proceeding with the new field additions.
-        migrations.RunSQL(
-            sql="DROP INDEX IF EXISTS accounts_profile_slug_8a7a322e_like",
-            reverse_sql=migrations.RunSQL.noop,
+        migrations.RunPython(
+            drop_legacy_profile_slug_index, migrations.RunPython.noop
         ),
         migrations.AddField(
             model_name="profile",
