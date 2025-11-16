@@ -5,6 +5,14 @@ import uuid
 from django.db import migrations, models
 
 
+def populate_profile_slugs(apps, schema_editor):
+    Profile = apps.get_model("accounts", "Profile")
+
+    for profile in Profile.objects.filter(slug__isnull=True).iterator():
+        profile.slug = str(uuid.uuid4())
+        profile.save(update_fields=["slug"])
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -84,6 +92,12 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AddField(
+            model_name="profile",
+            name="slug",
+            field=models.SlugField(blank=True, max_length=160, null=True),
+        ),
+        migrations.RunPython(populate_profile_slugs, migrations.RunPython.noop),
+        migrations.AlterField(
             model_name="profile",
             name="slug",
             field=models.SlugField(default=uuid.uuid4, max_length=160, unique=True),
