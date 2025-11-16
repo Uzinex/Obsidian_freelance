@@ -169,6 +169,38 @@ def drop_legacy_profile_slug_index(apps, schema_editor):
         )
 
 
+def drop_legacy_profile_slug_unique_constraint(apps, schema_editor):
+    """Drop leftover unique constraints from early slugs."""
+
+    if schema_editor.connection.vendor != "postgresql":  # pragma: no cover - safety
+        return
+
+    constraint_name = "accounts_profile_slug_8a7a322e_uniq"
+    with schema_editor.connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT n.nspname
+            FROM pg_constraint c
+            JOIN pg_class t ON t.oid = c.conrelid
+            JOIN pg_namespace n ON n.oid = t.relnamespace
+            WHERE c.conname = %s AND t.relname = %s
+            """
+            [constraint_name, "accounts_profile"],
+        )
+
+        schemas = [row[0] for row in cursor.fetchall()]
+        quote = schema_editor.quote_name
+
+        for schema in schemas:
+            cursor.execute(
+                f"ALTER TABLE {quote(schema)}.{quote('accounts_profile')} DROP CONSTRAINT IF EXISTS {quote(constraint_name)} CASCADE"
+            )
+
+        cursor.execute(
+            f"ALTER TABLE {quote('accounts_profile')} DROP CONSTRAINT IF EXISTS {quote(constraint_name)} CASCADE"
+        )
+
+
 def populate_profile_slugs(apps, schema_editor):
     Profile = apps.get_model("accounts", "Profile")
 
@@ -200,6 +232,10 @@ class Migration(migrations.Migration):
         # exists before proceeding with the new field additions.
         migrations.RunPython(
             drop_legacy_profile_slug_index, migrations.RunPython.noop
+        ),
+        migrations.RunPython(
+            drop_legacy_profile_slug_unique_constraint,
+            migrations.RunPython.noop,
         ),
         migrations.SeparateDatabaseAndState(
             database_operations=[
