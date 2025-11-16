@@ -27,12 +27,15 @@ def drop_legacy_profile_slug_index(apps, schema_editor):
         # Drop the index for every schema it may exist in. Afterwards, perform a
         # final drop without the schema qualifier as a best-effort fallback so
         # we cover databases that rely on the current search path.
+        quote = schema_editor.quote_name
         for schema in schemas:
             cursor.execute(
-                f'DROP INDEX IF EXISTS "{schema}"."{index_name}"'
+                f"DROP INDEX IF EXISTS {quote(schema)}.{quote(index_name)} CASCADE"
             )
 
-        cursor.execute(f'DROP INDEX IF EXISTS {index_name}')
+        cursor.execute(
+            f"DROP INDEX IF EXISTS {quote(index_name)} CASCADE"
+        )
 
 
 def populate_profile_slugs(apps, schema_editor):
@@ -140,13 +143,17 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="profile",
             name="slug",
-            field=models.SlugField(blank=True, max_length=160, null=True),
+            field=models.SlugField(
+                blank=True, db_index=False, max_length=160, null=True
+            ),
         ),
         migrations.RunPython(populate_profile_slugs, migrations.RunPython.noop),
         migrations.AlterField(
             model_name="profile",
             name="slug",
-            field=models.SlugField(default=uuid.uuid4, max_length=160, unique=True),
+            field=models.SlugField(
+                db_index=False, default=uuid.uuid4, max_length=160, unique=True
+            ),
         ),
         migrations.AddField(
             model_name="profile",
@@ -188,6 +195,14 @@ class Migration(migrations.Migration):
             model_name="profile",
             index=models.Index(
                 fields=["last_activity_at"], name="profile_last_activity_idx"
+            ),
+        ),
+        migrations.AddIndex(
+            model_name="profile",
+            index=models.Index(
+                fields=["slug"],
+                name="profile_slug_like_idx",
+                opclasses=["varchar_pattern_ops"],
             ),
         ),
     ]
