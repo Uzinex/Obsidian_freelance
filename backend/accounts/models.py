@@ -10,6 +10,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models, transaction
 from django.utils import timezone
 
@@ -68,10 +69,61 @@ class Profile(models.Model):
         (REGISTRATION_TYPE_YATT, "YATT"),
     ]
 
+    CONTACT_PREF_PLATFORM = "platform"
+    CONTACT_PREF_EMAIL = "email"
+    CONTACT_PREF_PHONE = "phone"
+    CONTACT_PREF_CHOICES = [
+        (CONTACT_PREF_PLATFORM, "Platform"),
+        (CONTACT_PREF_EMAIL, "Email"),
+        (CONTACT_PREF_PHONE, "Phone"),
+    ]
+
+    AVAILABILITY_FULL_TIME = "full_time"
+    AVAILABILITY_PART_TIME = "part_time"
+    AVAILABILITY_PROJECT = "project"
+    AVAILABILITY_CHOICES = [
+        (AVAILABILITY_FULL_TIME, "Full-time"),
+        (AVAILABILITY_PART_TIME, "Part-time"),
+        (AVAILABILITY_PROJECT, "Project-based"),
+    ]
+
+    VISIBILITY_PUBLIC = "public"
+    VISIBILITY_PRIVATE = "private"
+    VISIBILITY_LINK_ONLY = "link_only"
+    VISIBILITY_CHOICES = [
+        (VISIBILITY_PUBLIC, "Public"),
+        (VISIBILITY_PRIVATE, "Private"),
+        (VISIBILITY_LINK_ONLY, "Link-only"),
+    ]
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile"
     )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    slug = models.SlugField(max_length=160, unique=True, default=uuid.uuid4)
+    headline = models.CharField(max_length=255, blank=True)
+    bio = models.TextField(blank=True)
+    hourly_rate = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True
+    )
+    min_budget = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    availability = models.CharField(
+        max_length=20, choices=AVAILABILITY_CHOICES, blank=True
+    )
+    timezone = models.CharField(max_length=64, blank=True)
+    languages = models.JSONField(default=list, blank=True)
+    location = models.JSONField(default=dict, blank=True)
+    links = models.JSONField(default=list, blank=True)
+    contact_pref = models.CharField(
+        max_length=20,
+        choices=CONTACT_PREF_CHOICES,
+        default=CONTACT_PREF_PLATFORM,
+    )
+    visibility = models.CharField(
+        max_length=20, choices=VISIBILITY_CHOICES, default=VISIBILITY_PUBLIC
+    )
     freelancer_type = models.CharField(
         max_length=20, choices=FREELANCER_TYPE_CHOICES, blank=True
     )
@@ -96,11 +148,18 @@ class Profile(models.Model):
     house = models.CharField(max_length=120, blank=True)
     is_completed = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
+    last_activity_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            GinIndex(fields=["languages"], name="profile_languages_gin"),
+            models.Index(fields=["hourly_rate", "min_budget"], name="profile_rate_idx"),
+            models.Index(fields=["is_verified", "visibility"], name="profile_verified_idx"),
+            models.Index(fields=["last_activity_at"], name="profile_last_activity_idx"),
+        ]
 
     def __str__(self) -> str:  # pragma: no cover - simple data representation
         return f"Profile of {self.user.nickname}"

@@ -8,9 +8,19 @@ class Category(models.Model):
     name = models.CharField(max_length=150, unique=True)
     slug = models.SlugField(max_length=160, unique=True)
     description = models.TextField(blank=True)
+    title_ru = models.CharField(max_length=150, blank=True)
+    title_uz = models.CharField(max_length=150, blank=True)
+    description_ru = models.TextField(blank=True)
+    description_uz = models.TextField(blank=True)
+    parent = models.ForeignKey(
+        "self", on_delete=models.CASCADE, related_name="children", null=True, blank=True
+    )
 
     class Meta:
         ordering = ["name"]
+        indexes = [
+            models.Index(fields=["slug"], name="marketplace_category_slug_idx"),
+        ]
 
     def __str__(self) -> str:  # pragma: no cover - simple data representation
         return self.name
@@ -22,12 +32,49 @@ class Skill(models.Model):
     category = models.ForeignKey(
         Category, on_delete=models.CASCADE, related_name="skills"
     )
+    title_ru = models.CharField(max_length=150, blank=True)
+    title_uz = models.CharField(max_length=150, blank=True)
+    description = models.TextField(blank=True)
+    description_ru = models.TextField(blank=True)
+    description_uz = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    popularity = models.PositiveIntegerField(default=0)
 
     class Meta:
         ordering = ["name"]
+        indexes = [
+            models.Index(fields=["slug"], name="marketplace_skill_slug_idx"),
+            models.Index(fields=["category", "name"], name="marketplace_skill_category_idx"),
+        ]
 
     def __str__(self) -> str:  # pragma: no cover - simple data representation
         return self.name
+
+
+class SkillSynonym(models.Model):
+    LANGUAGE_RU = "ru"
+    LANGUAGE_UZ = "uz"
+    LANGUAGE_EN = "en"
+    LANGUAGE_CHOICES = [
+        (LANGUAGE_RU, "Russian"),
+        (LANGUAGE_UZ, "Uzbek"),
+        (LANGUAGE_EN, "English"),
+    ]
+
+    skill = models.ForeignKey(
+        Skill, on_delete=models.CASCADE, related_name="synonyms"
+    )
+    language = models.CharField(max_length=5, choices=LANGUAGE_CHOICES)
+    value = models.CharField(max_length=150)
+
+    class Meta:
+        unique_together = ("skill", "language", "value")
+        indexes = [
+            models.Index(fields=["language", "value"], name="skill_synonym_language_idx"),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - simple data representation
+        return f"Synonym({self.value} -> {self.skill.name})"
 
 
 class Order(models.Model):
