@@ -8,6 +8,9 @@ from django.db import migrations, models
 def drop_legacy_profile_slug_index(apps, schema_editor):
     """Drop the legacy LIKE index that may linger on older databases."""
 
+    if schema_editor.connection.vendor != "postgresql":  # pragma: no cover - safety
+        return
+
     index_name = "accounts_profile_slug_8a7a322e_like"
     with schema_editor.connection.cursor() as cursor:
         cursor.execute(
@@ -21,13 +24,15 @@ def drop_legacy_profile_slug_index(apps, schema_editor):
         )
         schemas = [row[0] for row in cursor.fetchall()]
 
-        for schema in schemas or [None]:
-            if schema:
-                cursor.execute(
-                    f'DROP INDEX IF EXISTS "{schema}"."{index_name}"'
-                )
-            else:
-                cursor.execute(f'DROP INDEX IF EXISTS {index_name}')
+        # Drop the index for every schema it may exist in. Afterwards, perform a
+        # final drop without the schema qualifier as a best-effort fallback so
+        # we cover databases that rely on the current search path.
+        for schema in schemas:
+            cursor.execute(
+                f'DROP INDEX IF EXISTS "{schema}"."{index_name}"'
+            )
+
+        cursor.execute(f'DROP INDEX IF EXISTS {index_name}')
 
 
 def populate_profile_slugs(apps, schema_editor):
@@ -44,6 +49,11 @@ class Migration(migrations.Migration):
         ("accounts", "0010_delete_notification"),
         ("marketplace", "0005_skillsynonym_category_description_ru_and_more"),
     ]
+
+    # The first operation explicitly drops an index. Running this migration in a
+    # non-atomic mode ensures that, once the drop succeeds, PostgreSQL commits
+    # it immediately and the subsequent schema changes never see the old index.
+    atomic = False
 
     operations = [
         # In some environments a previous slug field or index may still exist
