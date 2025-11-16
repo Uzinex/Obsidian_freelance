@@ -5,6 +5,8 @@ from typing import Optional, Tuple
 from django.conf import settings
 from django.utils import timezone
 from rest_framework import authentication, exceptions
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.permissions import SAFE_METHODS
 
 from obsidian_backend import jwt_settings as jwt_conf
 
@@ -38,7 +40,12 @@ class JWTAuthentication(authentication.BaseAuthentication):
         if not parts:
             return None
         if parts[0] != self.keyword:
-            raise exceptions.AuthenticationFailed("Invalid authorization header")
+            # Ignore authorization schemes that we do not recognize instead of
+            # failing with HTTP 401.  Older builds of the frontend may still
+            # optimistically attach ``Token``/``JWT`` headers even for
+            # unauthenticated users and raising here would effectively block
+            # anonymous access to otherwise public endpoints.
+            return None
         if len(parts) == 1:
             # ``Bearer`` header without an accompanying token should be treated
             # the same as if the header was not provided.  Browsers sometimes
@@ -90,3 +97,32 @@ class JWTAuthentication(authentication.BaseAuthentication):
 
 def legacy_token_authentication_enabled() -> bool:
     return jwt_conf.FEATURE_FLAGS.get("auth.token_legacy", False)
+
+
+class LegacyTokenAuthentication(TokenAuthentication):
+    """Backward-compatible token auth that tolerates invalid placeholders."""
+
+    _PLACEHOLDER_VALUES = {"", "null", "undefined", "none"}
+
+    def authenticate(self, request):
+        auth = authentication.get_authorization_header(request).split()
+        if not auth:
+            return None
+        if auth[0].lower() != b"token":
+            return None
+        if len(auth) == 1:
+            return None
+        if len(auth) > 2:
+            raise exceptions.AuthenticationFailed("Invalid token header")
+        try:
+            token = auth[1].decode("utf-8").strip()
+        except UnicodeError as exc:  # pragma: no cover - defensive
+            raise exceptions.AuthenticationFailed("Invalid token header") from exc
+        if token.lower() in self._PLACEHOLDER_VALUES:
+            return None
+        try:
+            return self.authenticate_credentials(token)
+        except exceptions.AuthenticationFailed:
+            if request.method in SAFE_METHODS:
+                return None
+            raise

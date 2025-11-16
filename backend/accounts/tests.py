@@ -106,6 +106,18 @@ class JWTAuthenticationTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_non_bearer_authorization_header_is_ignored(self):
+        response = self.client.get(
+            reverse("category-list"), HTTP_AUTHORIZATION="Token abc123"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_invalid_legacy_token_still_denied_on_protected_views(self):
+        response = self.client.get(
+            reverse("wallet-list"), HTTP_AUTHORIZATION="Token invalid"
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
 
 class OrderRBACPermissionTests(APITestCase):
     def setUp(self):
