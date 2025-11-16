@@ -5,6 +5,137 @@ import uuid
 from django.db import migrations, models
 
 
+PROFILE_FIELD_SPECS = [
+    (
+        "availability",
+        models.CharField,
+        {
+            "blank": True,
+            "choices": [
+                ("full_time", "Full-time"),
+                ("part_time", "Part-time"),
+                ("project", "Project-based"),
+            ],
+            "max_length": 20,
+        },
+    ),
+    ("bio", models.TextField, {"blank": True}),
+    (
+        "contact_pref",
+        models.CharField,
+        {
+            "choices": [
+                ("platform", "Platform"),
+                ("email", "Email"),
+                ("phone", "Phone"),
+            ],
+            "default": "platform",
+            "max_length": 20,
+        },
+    ),
+    ("headline", models.CharField, {"blank": True, "max_length": 255}),
+    (
+        "hourly_rate",
+        models.DecimalField,
+        {
+            "blank": True,
+            "decimal_places": 2,
+            "max_digits": 10,
+            "null": True,
+        },
+    ),
+    ("languages", models.JSONField, {"blank": True, "default": list}),
+    (
+        "last_activity_at",
+        models.DateTimeField,
+        {"blank": True, "null": True},
+    ),
+    ("links", models.JSONField, {"blank": True, "default": list}),
+    ("location", models.JSONField, {"blank": True, "default": dict}),
+    (
+        "min_budget",
+        models.DecimalField,
+        {
+            "blank": True,
+            "decimal_places": 2,
+            "max_digits": 12,
+            "null": True,
+        },
+    ),
+    (
+        "slug",
+        models.SlugField,
+        {
+            "blank": True,
+            "db_index": False,
+            "max_length": 160,
+            "null": True,
+        },
+    ),
+    ("timezone", models.CharField, {"blank": True, "max_length": 64}),
+    (
+        "visibility",
+        models.CharField,
+        {
+            "choices": [
+                ("public", "Public"),
+                ("private", "Private"),
+                ("link_only", "Link-only"),
+            ],
+            "default": "public",
+            "max_length": 20,
+        },
+    ),
+]
+
+
+def build_profile_fields():
+    return [
+        (name, field_class(**field_kwargs))
+        for name, field_class, field_kwargs in PROFILE_FIELD_SPECS
+    ]
+
+
+def profile_table_has_column(schema_editor, column_name):
+    with schema_editor.connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_name = %s
+              AND table_schema = current_schema()
+              AND column_name = %s
+            LIMIT 1
+            """,
+            ["accounts_profile", column_name],
+        )
+        return cursor.fetchone() is not None
+
+
+def ensure_profile_field_if_missing(apps, schema_editor, field_name, field):
+    if profile_table_has_column(schema_editor, field_name):
+        return
+
+    profile_model = apps.get_model("accounts", "Profile")
+    field.set_attributes_from_name(field_name)
+    schema_editor.add_field(profile_model, field)
+
+
+def ensure_profile_fields(apps, schema_editor):
+    for name, field in build_profile_fields():
+        ensure_profile_field_if_missing(apps, schema_editor, name, field)
+
+
+PROFILE_FIELD_STATE_OPERATIONS = [
+    migrations.AddField(
+        model_name="profile",
+        name=name,
+        field=field,
+    )
+    for name, field in build_profile_fields()
+]
+
+
 def drop_legacy_profile_slug_index(apps, schema_editor):
     """Drop the legacy LIKE index that may linger on older databases."""
 
@@ -70,82 +201,14 @@ class Migration(migrations.Migration):
         migrations.RunPython(
             drop_legacy_profile_slug_index, migrations.RunPython.noop
         ),
-        migrations.AddField(
-            model_name="profile",
-            name="availability",
-            field=models.CharField(
-                blank=True,
-                choices=[
-                    ("full_time", "Full-time"),
-                    ("part_time", "Part-time"),
-                    ("project", "Project-based"),
-                ],
-                max_length=20,
-            ),
-        ),
-        migrations.AddField(
-            model_name="profile",
-            name="bio",
-            field=models.TextField(blank=True),
-        ),
-        migrations.AddField(
-            model_name="profile",
-            name="contact_pref",
-            field=models.CharField(
-                choices=[
-                    ("platform", "Platform"),
-                    ("email", "Email"),
-                    ("phone", "Phone"),
-                ],
-                default="platform",
-                max_length=20,
-            ),
-        ),
-        migrations.AddField(
-            model_name="profile",
-            name="headline",
-            field=models.CharField(blank=True, max_length=255),
-        ),
-        migrations.AddField(
-            model_name="profile",
-            name="hourly_rate",
-            field=models.DecimalField(
-                blank=True, decimal_places=2, max_digits=10, null=True
-            ),
-        ),
-        migrations.AddField(
-            model_name="profile",
-            name="languages",
-            field=models.JSONField(blank=True, default=list),
-        ),
-        migrations.AddField(
-            model_name="profile",
-            name="last_activity_at",
-            field=models.DateTimeField(blank=True, null=True),
-        ),
-        migrations.AddField(
-            model_name="profile",
-            name="links",
-            field=models.JSONField(blank=True, default=list),
-        ),
-        migrations.AddField(
-            model_name="profile",
-            name="location",
-            field=models.JSONField(blank=True, default=dict),
-        ),
-        migrations.AddField(
-            model_name="profile",
-            name="min_budget",
-            field=models.DecimalField(
-                blank=True, decimal_places=2, max_digits=12, null=True
-            ),
-        ),
-        migrations.AddField(
-            model_name="profile",
-            name="slug",
-            field=models.SlugField(
-                blank=True, db_index=False, max_length=160, null=True
-            ),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(
+                    ensure_profile_fields,
+                    migrations.RunPython.noop,
+                )
+            ],
+            state_operations=PROFILE_FIELD_STATE_OPERATIONS,
         ),
         migrations.RunPython(populate_profile_slugs, migrations.RunPython.noop),
         migrations.AlterField(
@@ -153,24 +216,6 @@ class Migration(migrations.Migration):
             name="slug",
             field=models.SlugField(
                 db_index=False, default=uuid.uuid4, max_length=160, unique=True
-            ),
-        ),
-        migrations.AddField(
-            model_name="profile",
-            name="timezone",
-            field=models.CharField(blank=True, max_length=64),
-        ),
-        migrations.AddField(
-            model_name="profile",
-            name="visibility",
-            field=models.CharField(
-                choices=[
-                    ("public", "Public"),
-                    ("private", "Private"),
-                    ("link_only", "Link-only"),
-                ],
-                default="public",
-                max_length=20,
             ),
         ),
         migrations.AddIndex(
