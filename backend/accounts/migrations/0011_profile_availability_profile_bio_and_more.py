@@ -21,6 +21,18 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # In some environments a previous slug field or index may still exist
+        # even though the migration history does not contain it. When Django
+        # tries to add or alter the slug field it attempts to recreate the
+        # accompanying index, which results in PostgreSQL raising a
+        # ``DuplicateTable`` error because the index (named
+        # ``accounts_profile_slug_8a7a322e_like``) is already present. To keep
+        # the migration idempotent we explicitly drop that leftover index if it
+        # exists before proceeding with the new field additions.
+        migrations.RunSQL(
+            sql="DROP INDEX IF EXISTS accounts_profile_slug_8a7a322e_like",
+            reverse_sql=migrations.RunSQL.noop,
+        ),
         migrations.AddField(
             model_name="profile",
             name="availability",
