@@ -1,14 +1,60 @@
-import dayjs from 'dayjs';
-import utc from 'dayjs/plugin/utc';
-import timezone from 'dayjs/plugin/timezone';
-import localizedFormat from 'dayjs/plugin/localizedFormat';
-
-dayjs.extend(utc);
-dayjs.extend(timezone);
-dayjs.extend(localizedFormat);
-
 export const TASHKENT_TIMEZONE = 'Asia/Tashkent';
-dayjs.tz.setDefault(TASHKENT_TIMEZONE);
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+const tzFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: TASHKENT_TIMEZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+function parseDate(value) {
+  if (value instanceof Date) {
+    const cloned = new Date(value.getTime());
+    return Number.isNaN(cloned.getTime()) ? null : cloned;
+  }
+  const date = new Date(value ?? '');
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function extractParts(date) {
+  const parts = { year: 0, month: 0, day: 0, hour: 0, minute: 0 };
+  tzFormatter.formatToParts(date).forEach(({ type, value }) => {
+    if (type in parts) {
+      parts[type] = Number(value);
+    }
+  });
+  const startOfDay = Date.UTC(parts.year, parts.month - 1, parts.day);
+  const timestamp = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+  );
+  return { ...parts, startOfDay, timestamp };
+}
+
+function getZonedDate(value) {
+  const date = parseDate(value);
+  if (!date) {
+    return null;
+  }
+  return extractParts(date);
+}
+
+function formatPattern(parts, pattern) {
+  const replacements = {
+    DD: String(parts.day).padStart(2, '0'),
+    MM: String(parts.month).padStart(2, '0'),
+    YYYY: String(parts.year).padStart(4, '0'),
+    HH: String(parts.hour).padStart(2, '0'),
+    mm: String(parts.minute).padStart(2, '0'),
+  };
+  return pattern.replace(/YYYY|DD|MM|HH|mm/g, (token) => replacements[token] ?? token);
+}
 
 const SUPPORTED_LOCALES = ['ru', 'uz'];
 const FALLBACK_LOCALES = ['ru', 'uz'];
@@ -77,29 +123,24 @@ export function formatCurrency(
   return `${formattedNumber} ${label}`.trim();
 }
 
-function normalizeDateInput(value) {
-  const date = dayjs(value);
-  return date.isValid() ? date.tz(TASHKENT_TIMEZONE) : null;
-}
-
 export function formatDate(value, { locale, pattern } = {}) {
-  const date = normalizeDateInput(value);
-  if (!date) {
+  const zoned = getZonedDate(value);
+  if (!zoned) {
     return '';
   }
   const fmt = pattern ?? 'DD.MM.YYYY';
   resolveLocale(locale); // keep interface symmetrical for future overrides
-  return date.format(fmt);
+  return formatPattern(zoned, fmt);
 }
 
 export function formatDateTime(value, { locale, pattern } = {}) {
-  const date = normalizeDateInput(value);
-  if (!date) {
+  const zoned = getZonedDate(value);
+  if (!zoned) {
     return '';
   }
   const fmt = pattern ?? 'DD.MM.YYYY HH:mm';
   resolveLocale(locale);
-  return date.format(fmt);
+  return formatPattern(zoned, fmt);
 }
 
 const RELATIVE_COPY = {
@@ -132,15 +173,14 @@ export function formatPlural(count, locale, forms) {
 }
 
 export function formatRelativeDate(value, { locale, thresholdDays = 7 } = {}) {
-  const date = normalizeDateInput(value);
-  if (!date) {
+  const zoned = getZonedDate(value);
+  if (!zoned) {
     return '';
   }
   const normalized = resolveLocale(locale);
   const copy = RELATIVE_COPY[normalized] ?? RELATIVE_COPY.ru;
-  const today = dayjs().tz(TASHKENT_TIMEZONE).startOf('day');
-  const target = date.startOf('day');
-  const diffDays = target.diff(today, 'day');
+  const today = getZonedDate(new Date());
+  const diffDays = Math.round((zoned.startOfDay - today.startOfDay) / DAY_IN_MS);
   if (diffDays === 0) {
     return copy.today;
   }
@@ -151,7 +191,7 @@ export function formatRelativeDate(value, { locale, thresholdDays = 7 } = {}) {
     return copy.tomorrow;
   }
   if (Math.abs(diffDays) > thresholdDays) {
-    return date.format('DD.MM.YYYY');
+    return formatPattern(zoned, 'DD.MM.YYYY');
   }
   const unit = formatPlural(Math.abs(diffDays), normalized, copy.dayForms);
   const template = diffDays > 0 ? copy.future : copy.past;
