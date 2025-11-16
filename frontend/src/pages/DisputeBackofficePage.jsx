@@ -6,6 +6,7 @@ import {
   updateDisputeStatus,
   uploadDisputeEvidence,
 } from '../api/client.js';
+import { formatDateTime } from '../utils/formatting.js';
 
 const STATUS_CHOICES = [
   { value: '', label: 'Все' },
@@ -70,7 +71,7 @@ export default function DisputeBackofficePage() {
 
   const formattedEvents = useMemo(() => {
     if (!selectedCase?.events) return [];
-    return selectedCase.events.map((event) => ({ ...event, created_at: new Date(event.created_at).toLocaleString() }));
+    return selectedCase.events.map((event) => ({ ...event, created_at: formatDateTime(event.created_at) }));
   }, [selectedCase]);
 
   const handleStatusUpdate = async () => {
@@ -178,7 +179,7 @@ export default function DisputeBackofficePage() {
               <p>Контракт #{item.contract_id}</p>
               <p>Категория: {item.category || '—'}</p>
               <p>Сумма: {item.amount_under_review}</p>
-              <p>SLA: {new Date(item.sla_due_at).toLocaleString()}</p>
+              <p>SLA: {formatDateTime(item.sla_due_at)}</p>
             </article>
           ))}
         </div>

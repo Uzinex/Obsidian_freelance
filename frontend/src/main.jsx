@@ -9,16 +9,19 @@ import './styles.css';
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
 
 if (sentryDsn) {
+  const integrations = [];
+  if (typeof Sentry.browserTracingIntegration === 'function') {
+    integrations.push(
+      Sentry.browserTracingIntegration({
+        tracePropagationTargets: ['localhost', /^\/api/],
+      }),
+    );
+  }
   Sentry.init({
     dsn: sentryDsn,
     environment: import.meta.env.VITE_SENTRY_ENV ?? 'dev',
     release: import.meta.env.VITE_SENTRY_RELEASE,
-    integrations: [
-      Sentry.browserTracingIntegration({
-        tracePropagationTargets: ['localhost', /^\/api/],
-      }),
-      Sentry.profilerIntegration(),
-    ],
+    integrations,
     tracesSampleRate: Number(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE ?? 0.2),
     profilesSampleRate: Number(import.meta.env.VITE_SENTRY_PROFILES_SAMPLE_RATE ?? 0.2),
   });

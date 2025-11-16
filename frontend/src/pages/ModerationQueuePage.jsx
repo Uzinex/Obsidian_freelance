@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchModerationCases, updateModerationCase } from '../api/client.js';
+import { formatDateTime } from '../utils/formatting.js';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Все' },
@@ -112,7 +113,7 @@ export default function ModerationQueuePage() {
               </header>
               <p className="muted">Причина: {item.escalation_reason}</p>
               <p>Статус: {item.status}</p>
-              <p>SLA: {new Date(item.sla_due_at).toLocaleString()}</p>
+              <p>SLA: {formatDateTime(item.sla_due_at)}</p>
               <button type="button" onClick={() => setSelectedCase(item)}>Открыть</button>
             </article>
           ))}
@@ -125,7 +126,7 @@ export default function ModerationQueuePage() {
             <p>{selectedCase.message.body || selectedCase.message.action}</p>
           </header>
           <p>Статус: {selectedCase.status}</p>
-          <p>Последнее обновление: {new Date(selectedCase.escalated_at).toLocaleString()}</p>
+          <p>Последнее обновление: {formatDateTime(selectedCase.escalated_at)}</p>
           <label>
             Комментарий
             <textarea value={resolutionNotes} onChange={(event) => setResolutionNotes(event.target.value)} placeholder="Примечание для журнала" />

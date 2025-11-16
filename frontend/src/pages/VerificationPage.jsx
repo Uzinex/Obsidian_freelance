@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { fetchVerificationRequests, submitVerification } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { formatDateTime } from '../utils/formatting.js';
 
 const documents = [
   { value: 'driver_license', label: 'Водительское удостоверение' },
@@ -160,7 +161,7 @@ export default function VerificationPage() {
           <ul style={{ paddingLeft: '1.25rem', marginTop: '0.5rem' }}>
             {requests.map((item) => (
               <li key={item.id}>
-                {new Date(item.created_at).toLocaleString()} — {statusLabels[item.status] || item.status}
+                {formatDateTime(item.created_at)} — {statusLabels[item.status] || item.status}
                 {item.reviewer_note ? ` (Комментарий: ${item.reviewer_note})` : ''}
               </li>
             ))}
