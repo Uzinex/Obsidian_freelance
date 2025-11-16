@@ -234,7 +234,7 @@ REST_FRAMEWORK = {
 if jwt_conf.FEATURE_FLAGS.get("auth.token_legacy", False):
     REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] = (
         "accounts.authentication.JWTAuthentication",
-        "rest_framework.authentication.TokenAuthentication",
+        "accounts.authentication.LegacyTokenAuthentication",
     )
 
 AUTH_REQUIRE_2FA_FOR_STAFF = jwt_conf.FEATURE_FLAGS.get("auth.2fa", False)
