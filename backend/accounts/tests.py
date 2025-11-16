@@ -91,6 +91,16 @@ class ProfileSerializerTests(APITestCase):
         )
 
 
+class JWTAuthenticationTests(APITestCase):
+    def test_placeholder_bearer_token_treated_as_anonymous(self):
+        # ``category-list`` view allows anonymous access, so it should not fail
+        # with HTTP 401 when the frontend mistakenly attaches ``Bearer null``.
+        response = self.client.get(
+            reverse("category-list"), HTTP_AUTHORIZATION="Bearer null"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
 class OrderRBACPermissionTests(APITestCase):
     def setUp(self):
         self.client_user = User.objects.create_user(

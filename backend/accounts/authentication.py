@@ -37,7 +37,14 @@ class JWTAuthentication(authentication.BaseAuthentication):
         parts = auth.split()
         if len(parts) != 2 or parts[0] != self.keyword:
             raise exceptions.AuthenticationFailed("Invalid authorization header")
-        token = parts[1]
+        token = parts[1].strip()
+        # Some browsers/extensions (or buggy frontend code) may optimistically
+        # attach placeholder values such as ``null``/``undefined`` when a user
+        # is not authenticated yet.  Treat those placeholders the same as the
+        # header being absent so public endpoints keep working instead of
+        # responding with spurious ``401`` errors.
+        if token.lower() in {"", "null", "undefined", "none"}:
+            return None
         try:
             payload = decode_jwt(token, token_type="access")
         except JWTDecodeError as exc:
