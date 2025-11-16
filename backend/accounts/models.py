@@ -100,7 +100,9 @@ class Profile(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile"
     )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
-    slug = models.SlugField(max_length=160, unique=True, default=uuid.uuid4)
+    slug = models.SlugField(
+        max_length=160, unique=True, default=uuid.uuid4, db_index=False
+    )
     headline = models.CharField(max_length=255, blank=True)
     bio = models.TextField(blank=True)
     hourly_rate = models.DecimalField(
@@ -159,6 +161,11 @@ class Profile(models.Model):
             models.Index(fields=["hourly_rate", "min_budget"], name="profile_rate_idx"),
             models.Index(fields=["is_verified", "visibility"], name="profile_verified_idx"),
             models.Index(fields=["last_activity_at"], name="profile_last_activity_idx"),
+            models.Index(
+                fields=["slug"],
+                name="profile_slug_like_idx",
+                opclasses=["varchar_pattern_ops"],
+            ),
         ]
 
     def __str__(self) -> str:  # pragma: no cover - simple data representation
