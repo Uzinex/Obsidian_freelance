@@ -1,0 +1,5 @@
+{
+  "emails.verification.subject": "Obsidian akkauntingizni tasdiqlang",
+  "emails.verification.body": "Shartnomalar va to'lovlar uchun verifikatsiyani yakunlang.",
+  "emails.payout.subject": "#{contract_id} shartnomasi uchun to'lov yuborildi"
+}

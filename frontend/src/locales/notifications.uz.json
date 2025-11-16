@@ -1,0 +1,5 @@
+{
+  "notifications.digest.summary": "Obsidian akkauntingizda {count} ta o'qilmagan bildirishnoma bor.",
+  "notifications.alert.dispute_opened": "#{case_id} mojarosi sizning javobingizni kutmoqda.",
+  "notifications.settings.quietHours": "Tinch soatlar"
+}
