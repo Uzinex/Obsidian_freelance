@@ -112,6 +112,18 @@ class JWTAuthenticationTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_invalid_bearer_token_falls_back_to_anonymous_on_safe_views(self):
+        response = self.client.get(
+            reverse("category-list"), HTTP_AUTHORIZATION="Bearer invalid"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_invalid_bearer_token_still_denied_on_protected_views(self):
+        response = self.client.get(
+            reverse("wallet-list"), HTTP_AUTHORIZATION="Bearer invalid"
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
     def test_invalid_legacy_token_still_denied_on_protected_views(self):
         response = self.client.get(
             reverse("wallet-list"), HTTP_AUTHORIZATION="Token invalid"
