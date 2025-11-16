@@ -98,7 +98,7 @@ function AppRoutes() {
 }
 
 export default function App() {
-  const { token, user, login, isAuthenticated } = useAuth();
+  const { token, user, login, logout, isAuthenticated } = useAuth();
   const location = useLocation();
 
   useEffect(() => {
@@ -112,6 +112,12 @@ export default function App() {
         const profile = await fetchProfile();
         login(token, { ...user, profile });
       } catch (error) {
+        if (error?.response?.status === 401 || error?.response?.status === 403) {
+          console.warn('Сессия больше недействительна, выполняем выход', error);
+          applyAuthToken(null);
+          logout();
+          return;
+        }
         console.error('Не удалось получить профиль пользователя', error);
       }
     }
