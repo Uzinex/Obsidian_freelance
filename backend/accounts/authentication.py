@@ -35,7 +35,17 @@ class JWTAuthentication(authentication.BaseAuthentication):
         if not auth:
             return None
         parts = auth.split()
-        if len(parts) != 2 or parts[0] != self.keyword:
+        if not parts:
+            return None
+        if parts[0] != self.keyword:
+            raise exceptions.AuthenticationFailed("Invalid authorization header")
+        if len(parts) == 1:
+            # ``Bearer`` header without an accompanying token should be treated
+            # the same as if the header was not provided.  Browsers sometimes
+            # serialize an empty string for optimistic auth attempts and we do
+            # not want to spam clients with ``401`` errors on public endpoints.
+            return None
+        if len(parts) > 2:
             raise exceptions.AuthenticationFailed("Invalid authorization header")
         token = parts[1].strip()
         # Some browsers/extensions (or buggy frontend code) may optimistically

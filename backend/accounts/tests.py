@@ -100,6 +100,12 @@ class JWTAuthenticationTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_missing_bearer_token_treated_as_anonymous(self):
+        response = self.client.get(
+            reverse("category-list"), HTTP_AUTHORIZATION="Bearer   "
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
 
 class OrderRBACPermissionTests(APITestCase):
     def setUp(self):
