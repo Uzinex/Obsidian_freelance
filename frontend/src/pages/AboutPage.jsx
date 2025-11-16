@@ -1,4 +1,7 @@
 import HeroImage from '../assets/about-hero.svg?url';
+import SeoHelmet from '../components/SeoHelmet.jsx';
+import { useLocale } from '../context/LocaleContext.jsx';
+import { publicContent } from '../mocks/publicContent.js';
 
 const milestones = [
   {
@@ -76,11 +79,15 @@ const approaches = [
 ];
 
 export default function AboutPage() {
+  const { locale } = useLocale();
+  const seo = publicContent[locale].seo.about;
+
   return (
-    <div className="about-page">
+    <div className="about-page" data-analytics-id="about">
+      <SeoHelmet title={seo.title} description={seo.description} path="/about" jsonLd={{ '@context': 'https://schema.org', '@type': 'Organization', name: publicContent[locale].organization.name }} />
       <section className="hero about-hero">
         <div>
-          <h1>О платформе Obsidian Freelance</h1>
+          <h1>{seo.title}</h1>
           <p>
             Obsidian Freelance — цифровой партнер для бизнеса, которому нужны точные проектные решения и управляемый доступ к
             экспертам. Мы соединяем компании и специалистов, выстраиваем процессы и обеспечиваем контроль качества, чтобы
@@ -91,11 +98,11 @@ export default function AboutPage() {
             где фриланс перестает быть риском и становится инструментом роста.
           </p>
         </div>
-        <img src={HeroImage} alt="Команда Obsidian" className="about-hero-illustration" />
+        <img src={HeroImage} alt="Команда Obsidian" className="about-hero-illustration" loading="lazy" decoding="async" />
       </section>
 
       <section className="card about-stats">
-        <h2>Проверенная экспертиза и измеримый эффект</h2>
+        <h2>{locale === 'uz' ? 'Tasdiqlangan ekspertiza' : 'Проверенная экспертиза и измеримый эффект'}</h2>
         <div className="grid four">
           {stats.map((stat) => (
             <div key={stat.label} className="about-stat">
@@ -116,7 +123,7 @@ export default function AboutPage() {
       </section>
 
       <section className="card about-approach">
-        <h2>Как мы работаем с заказчиками</h2>
+        <h2>{locale === 'uz' ? 'Mijozlar bilan qanday ishlaymiz' : 'Как мы работаем с заказчиками'}</h2>
         <div className="grid three">
           {approaches.map((approach) => (
             <article key={approach.title} className="about-approach-item">
@@ -128,7 +135,7 @@ export default function AboutPage() {
       </section>
 
       <section className="card timeline">
-        <h2>Как мы растем</h2>
+        <h2>{locale === 'uz' ? 'Qanday o‘smoqdamiz' : 'Как мы растем'}</h2>
         <div className="timeline-track">
           {milestones.map((milestone) => (
             <div key={milestone.year} className="timeline-item">
@@ -143,7 +150,7 @@ export default function AboutPage() {
       </section>
 
       <section className="card about-cta">
-        <h2>Присоединяйтесь к экосистеме</h2>
+        <h2>{locale === 'uz' ? 'Ekotizimga qo‘shiling' : 'Присоединяйтесь к экосистеме'}</h2>
         <p>
           Независимо от масштаба задачи, вы получаете прозрачную архитектуру взаимодействия: единый договор, защищенные расчеты,
           измеримую отчетность и сервис-менеджера, который отвечает за успех проекта.

@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import Header from './components/Header.jsx';
 import Footer from './components/Footer.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import { useAuth } from './context/AuthContext.jsx';
+import { LocaleProvider } from './context/LocaleContext.jsx';
 import { applyAuthToken, fetchProfile } from './api/client.js';
 import HomePage from './pages/HomePage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
@@ -20,6 +21,78 @@ import ModerationQueuePage from './pages/ModerationQueuePage.jsx';
 import DisputeBackofficePage from './pages/DisputeBackofficePage.jsx';
 import NotificationSettingsPage from './pages/NotificationSettingsPage.jsx';
 import CookieConsentBanner from './components/CookieConsentBanner.jsx';
+import HowItWorksPage from './pages/public/HowItWorksPage.jsx';
+import EscrowPage from './pages/public/EscrowPage.jsx';
+import CategoriesShowcasePage from './pages/public/CategoriesShowcasePage.jsx';
+import PublicProfilePage from './pages/public/PublicProfilePage.jsx';
+import FAQPage from './pages/public/FAQPage.jsx';
+import BlogIndexPage from './pages/public/BlogIndexPage.jsx';
+import BlogArticlePage from './pages/public/BlogArticlePage.jsx';
+import ContactsPage from './pages/public/ContactsPage.jsx';
+import TermsPage from './pages/public/TermsPage.jsx';
+import PrivacyPage from './pages/public/PrivacyPage.jsx';
+import CookiesPage from './pages/public/CookiesPage.jsx';
+
+function PublicLayout() {
+  return (
+    <LocaleProvider>
+      <div className="app-shell">
+        <Header />
+        <main className="main-content">
+          <Outlet />
+        </main>
+        <Footer />
+        <CookieConsentBanner />
+      </div>
+    </LocaleProvider>
+  );
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/ru" replace />} />
+      <Route path="/:locale(ru|uz)" element={<PublicLayout />}>
+        <Route index element={<HomePage />} />
+        <Route path="about" element={<AboutPage />} />
+        <Route path="contacts" element={<ContactsPage />} />
+        <Route path="how-it-works" element={<HowItWorksPage />} />
+        <Route path="escrow" element={<EscrowPage />} />
+        <Route path="categories" element={<CategoriesShowcasePage />} />
+        <Route path="profiles/:slug" element={<PublicProfilePage />} />
+        <Route path="faq" element={<FAQPage />} />
+        <Route path="blog" element={<BlogIndexPage />} />
+        <Route path="blog/:slug" element={<BlogArticlePage />} />
+        <Route path="orders" element={<OrdersPage />} />
+        <Route path="orders/:orderId" element={<OrderDetailPage />} />
+        <Route element={<ProtectedRoute role="client" requireVerified />}>
+          <Route path="orders/create" element={<CreateOrderPage />} />
+        </Route>
+        <Route path="freelancers" element={<FreelancersPage />} />
+        <Route element={<ProtectedRoute />}> 
+          <Route path="profile" element={<ProfilePage />} />
+          <Route path="verification" element={<VerificationPage />} />
+          <Route path="settings/notifications" element={<NotificationSettingsPage />} />
+        </Route>
+        <Route element={<ProtectedRoute requireAdmin />}>
+          <Route path="verification/requests" element={<VerificationRequestsPage />} />
+        </Route>
+        <Route element={<ProtectedRoute requireStaffRole="moderator" />}>
+          <Route path="staff/moderation" element={<ModerationQueuePage />} />
+        </Route>
+        <Route element={<ProtectedRoute requireStaffRole="finance" />}>
+          <Route path="staff/disputes" element={<DisputeBackofficePage />} />
+        </Route>
+        <Route path="terms" element={<TermsPage />} />
+        <Route path="privacy" element={<PrivacyPage />} />
+        <Route path="cookies" element={<CookiesPage />} />
+      </Route>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="*" element={<Navigate to="/ru" replace />} />
+    </Routes>
+  );
+}
 
 export default function App() {
   const { token, user, login, isAuthenticated } = useAuth();
@@ -47,39 +120,5 @@ export default function App() {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
-  return (
-    <div className="app-shell">
-      <Header />
-      <main className="main-content">
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route element={<ProtectedRoute />}>
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/verification" element={<VerificationPage />} />
-            <Route path="/settings/notifications" element={<NotificationSettingsPage />} />
-          </Route>
-          <Route path="/orders" element={<OrdersPage />} />
-          <Route path="/orders/:orderId" element={<OrderDetailPage />} />
-          <Route element={<ProtectedRoute role="client" requireVerified />}>
-            <Route path="/orders/create" element={<CreateOrderPage />} />
-          </Route>
-          <Route element={<ProtectedRoute requireAdmin />}>
-            <Route path="/verification/requests" element={<VerificationRequestsPage />} />
-          </Route>
-          <Route element={<ProtectedRoute requireStaffRole="moderator" />}>
-            <Route path="/staff/moderation" element={<ModerationQueuePage />} />
-          </Route>
-          <Route element={<ProtectedRoute requireStaffRole="finance" />}>
-            <Route path="/staff/disputes" element={<DisputeBackofficePage />} />
-          </Route>
-          <Route path="/freelancers" element={<FreelancersPage />} />
-        </Routes>
-      </main>
-      <Footer />
-      <CookieConsentBanner />
-    </div>
-  );
+  return <AppRoutes />;
 }
