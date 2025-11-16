@@ -88,6 +88,7 @@ INSTALLED_APPS = [
     # Local apps
     "accounts",
     "marketplace",
+    "profiles",
     "uploads",
     "chat",
     "moderation",
