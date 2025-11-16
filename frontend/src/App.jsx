@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
-import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import Header from './components/Header.jsx';
 import Footer from './components/Footer.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import { useAuth } from './context/AuthContext.jsx';
-import { LocaleProvider } from './context/LocaleContext.jsx';
+import { DEFAULT_LOCALE, LocaleProvider, SUPPORTED_LOCALES } from './context/LocaleContext.jsx';
 import { applyAuthToken, fetchProfile } from './api/client.js';
 import HomePage from './pages/HomePage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
@@ -34,6 +34,10 @@ import PrivacyPage from './pages/public/PrivacyPage.jsx';
 import CookiesPage from './pages/public/CookiesPage.jsx';
 
 function PublicLayout() {
+  const { locale } = useParams();
+  if (!SUPPORTED_LOCALES.includes(locale)) {
+    return <Navigate to={`/${DEFAULT_LOCALE}`} replace />;
+  }
   return (
     <LocaleProvider>
       <div className="app-shell">
@@ -51,8 +55,7 @@ function PublicLayout() {
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/ru" replace />} />
-      <Route path="/:locale(ru|uz)" element={<PublicLayout />}>
+      <Route path="/:locale" element={<PublicLayout />}>
         <Route index element={<HomePage />} />
         <Route path="about" element={<AboutPage />} />
         <Route path="contacts" element={<ContactsPage />} />

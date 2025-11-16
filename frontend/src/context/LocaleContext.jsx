@@ -1,8 +1,8 @@
 import { createContext, useContext, useMemo } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 
-const SUPPORTED_LOCALES = ['ru', 'uz'];
-const DEFAULT_LOCALE = 'ru';
+export const SUPPORTED_LOCALES = ['ru', 'uz'];
+export const DEFAULT_LOCALE = 'ru';
 const SITE_URL = 'https://obsidianfreelance.com';
 
 const LOCALE_META = {
