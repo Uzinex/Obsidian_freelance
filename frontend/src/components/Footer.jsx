@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
+import { useLocale } from '../context/LocaleContext.jsx';
 
 export default function Footer() {
   const year = new Date().getFullYear();
+  const { buildPath } = useLocale();
+
   return (
     <footer className="footer">
       <div className="footer-inner">
@@ -15,10 +18,12 @@ export default function Footer() {
         <div className="footer-columns">
           <div className="footer-column">
             <h4>Навигация</h4>
-            <Link to="/">Главная</Link>
-            <Link to="/orders">Работы</Link>
-            <Link to="/freelancers">Фрилансеры</Link>
-            <Link to="/about">О нас</Link>
+            <Link to={buildPath('/')}>Главная</Link>
+            <Link to={buildPath('/orders')}>Работы</Link>
+            <Link to={buildPath('/freelancers')}>Фрилансеры</Link>
+            <Link to={buildPath('/about')}>О нас</Link>
+            <Link to={buildPath('/contacts')}>Контакты</Link>
+            <Link to={buildPath('/faq')}>FAQ</Link>
           </div>
           <div className="footer-column">
             <h4>Контакты</h4>

@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useLocale } from '../context/LocaleContext.jsx';
 
 export default function Header() {
   const { isAuthenticated } = useAuth();
+  const { buildPath } = useLocale();
 
   const navigation = useMemo(() => {
     const base = [
@@ -16,6 +18,16 @@ export default function Header() {
         to: '/about',
         label: 'О нас',
         icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/info.png',
+      },
+      {
+        to: '/how-it-works',
+        label: 'Как это работает',
+        icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/idea.png',
+      },
+      {
+        to: '/escrow',
+        label: 'Escrow',
+        icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/safe.png',
       },
     ];
 
@@ -50,7 +62,7 @@ export default function Header() {
   return (
     <header className="header">
       <div className="header-inner">
-        <Link to="/" className="header-logo">
+        <Link to={buildPath('/') } className="header-logo">
           <img src="/logo.svg" alt="Obsidian Freelance" />
           <div className="header-logo-text">
             <span>OBSIDIAN</span>
@@ -61,7 +73,7 @@ export default function Header() {
           {navigation.map((item) => (
             <NavLink
               key={item.to}
-              to={item.to}
+              to={buildPath(item.to)}
               className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}
             >
               <img src={item.icon} alt="" aria-hidden="true" className="nav-icon" />

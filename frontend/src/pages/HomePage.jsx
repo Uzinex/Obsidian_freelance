@@ -3,6 +3,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { fetchCategories, fetchOrders } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { formatCurrency, formatDate } from '../utils/formatting.js';
+import SeoHelmet from '../components/SeoHelmet.jsx';
+import { useLocale } from '../context/LocaleContext.jsx';
+import { publicContent } from '../mocks/publicContent.js';
+import { trackError, trackEvent, useScrollTelemetry } from '../utils/analytics.js';
 
 const stats = [
   {
@@ -89,6 +93,19 @@ export default function HomePage() {
   const [categories, setCategories] = useState([]);
   const [latestOrders, setLatestOrders] = useState([]);
   const { isAuthenticated } = useAuth();
+  const { locale, buildPath } = useLocale();
+  const seo = publicContent[locale].seo.home;
+  const localizedOrdersPath = buildPath('/orders');
+  const localizedFreelancersPath = buildPath('/freelancers');
+
+  useScrollTelemetry(['home-hero', 'home-categories', 'home-steps', 'home-orders'], {
+    page: 'landing',
+    locale,
+  });
+
+  useEffect(() => {
+    trackEvent('landing_view', { locale });
+  }, [locale]);
 
   useEffect(() => {
     async function loadData() {
@@ -101,25 +118,33 @@ export default function HomePage() {
         setLatestOrders(orderData.results || orderData);
       } catch (error) {
         console.error('Не удалось загрузить данные', error);
+        trackError('landing_data_error', error, { locale });
       }
     }
     loadData();
-  }, []);
+  }, [locale]);
 
   const primaryAction = useMemo(
     () => ({
-      to: isAuthenticated ? '/orders' : '/register',
+      to: isAuthenticated ? localizedOrdersPath : '/register',
       label: isAuthenticated ? 'Перейти к заказам' : 'Начать сейчас',
     }),
-    [isAuthenticated],
+    [isAuthenticated, localizedOrdersPath],
   );
 
   return (
-    <div className="homepage">
-      <section className="hero home-hero">
+    <div className="homepage" data-analytics-id="home">
+      <SeoHelmet title={seo.title} description={seo.description} path="/" ogImage={seo.ogImage} jsonLd={{ '@context': 'https://schema.org', '@type': 'Organization', name: publicContent[locale].organization.name, aggregateRating: publicContent[locale].organization.aggregateRating }} />
+      <section className="hero home-hero" data-analytics-id="home-hero">
         <div className="home-hero-content">
           <span className="hero-pill">
-            <img src="https://img.icons8.com/ios-filled/20/f5f5f5/dizzy-person.png" alt="" aria-hidden="true" />
+            <img
+              src="https://img.icons8.com/ios-filled/20/f5f5f5/dizzy-person.png"
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              decoding="async"
+            />
             Платформа для сложных цифровых задач
           </span>
           <h1>Объединяем лучшие команды для амбициозных проектов</h1>
@@ -128,18 +153,43 @@ export default function HomePage() {
             уровня мечты. Все процессы прозрачны, а сделки защищены.
           </p>
           <div className="hero-actions">
-            <Link className="button primary" to={primaryAction.to}>
+            <Link
+              className="button primary"
+              to={primaryAction.to}
+              onClick={() =>
+                trackEvent('landing_signup_click', {
+                  locale,
+                  authenticated: isAuthenticated,
+                })
+              }
+            >
               {primaryAction.label}
             </Link>
-            <Link className="button ghost" to="/orders">
+            <Link
+              className="button ghost"
+              to={localizedOrdersPath}
+              onClick={() =>
+                trackEvent('landing_post_job_click', {
+                  locale,
+                  authenticated: isAuthenticated,
+                })
+              }
+            >
               Смотреть работы
+            </Link>
+            <Link
+              className="button ghost"
+              to={localizedFreelancersPath}
+              onClick={() => trackEvent('landing_invite_freelancer', { locale })}
+            >
+              Пригласить фрилансера
             </Link>
           </div>
         </div>
         <div className="hero-stats">
           {stats.map((item) => (
             <div key={item.label} className="hero-stat">
-              <img src={item.icon} alt="" aria-hidden="true" />
+              <img src={item.icon} alt="" aria-hidden="true" loading="lazy" decoding="async" />
               <div>
                 <span>{item.value}</span>
                 <p>{item.label}</p>
@@ -149,21 +199,21 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="card category-section">
+      <section className="card category-section" data-analytics-id="home-categories">
         <header className="section-header">
           <div>
             <h2>Категории работ</h2>
             <p>Выберите направление и найдите проекты или специалистов в несколько кликов.</p>
           </div>
-          <Link to="/orders" className="button ghost">
+          <Link to={localizedOrdersPath} className="button ghost">
             Все работы
           </Link>
         </header>
         <div className="category-grid">
           {categories.map((category) => (
-            <Link key={category.id} to={`/orders?category=${category.slug}`} className="category-card">
+            <Link key={category.id} to={buildPath(`/orders?category=${category.slug}`)} className="category-card">
               <div className="category-card-visual">
-                <img src={getCategoryVisual(category)} alt="" aria-hidden="true" />
+                <img src={getCategoryVisual(category)} alt="" aria-hidden="true" loading="lazy" decoding="async" />
               </div>
               <div className="category-card-body">
                 <h3>{category.name}</h3>
@@ -174,7 +224,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="card steps-section">
+      <section className="card steps-section" data-analytics-id="home-steps">
         <h2>Как работает платформа</h2>
         <div className="grid three">
           {steps.map((step, index) => (
@@ -187,13 +237,13 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="card latest-orders">
+      <section className="card latest-orders" data-analytics-id="home-orders">
         <header className="section-header">
           <div>
             <h2>Свежие работы</h2>
             <p>Актуальные запросы от проверенных заказчиков.</p>
           </div>
-          <Link to="/orders" className="button ghost">
+          <Link to={localizedOrdersPath} className="button ghost">
             Смотреть все
           </Link>
         </header>

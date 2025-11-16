@@ -16,6 +16,7 @@ import {
   requestContractTermination,
 } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useLocale } from '../context/LocaleContext.jsx';
 import SkillSelector from '../components/SkillSelector.jsx';
 import NotificationCenter from '../components/notifications/NotificationCenter.jsx';
 import { formatCurrency, formatDateTime } from '../utils/formatting.js';
@@ -73,6 +74,7 @@ function getProfileFormDefaults(profile) {
 
 export default function ProfilePage() {
   const { user, login, token, logout, isVerificationAdmin } = useAuth();
+  const { buildPath } = useLocale();
   const [skills, setSkills] = useState([]);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -330,16 +332,16 @@ export default function ProfilePage() {
           </div>
           <div className="profile-actions">
             {!isVerificationAdmin && !isVerified && (
-              <Link to="/verification" className="button ghost">
+              <Link to={buildPath('/verification')} className="button ghost">
                 Пройти верификацию
               </Link>
             )}
             {isVerificationAdmin && (
               <>
-                <Link to="/verification" className="button ghost">
+                <Link to={buildPath('/verification')} className="button ghost">
                   Верификация
                 </Link>
-                <Link to="/verification/requests" className="button ghost">
+                <Link to={buildPath('/verification/requests')} className="button ghost">
                   Заявки
                 </Link>
               </>

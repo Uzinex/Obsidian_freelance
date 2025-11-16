@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
 import { createOrder, fetchSkills } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useLocale } from '../context/LocaleContext.jsx';
 import SkillSelector from '../components/SkillSelector.jsx';
 
 const paymentTypes = [
@@ -27,6 +28,7 @@ const deadlineUnits = [
 
 export default function CreateOrderPage() {
   const { user } = useAuth();
+  const { buildPath } = useLocale();
   const {
     register,
     handleSubmit,
@@ -115,7 +117,7 @@ export default function CreateOrderPage() {
         <p style={{ marginBottom: '1rem' }}>
           Пройдите процедуру проверки документов, чтобы размещать новые проекты и управлять ими.
         </p>
-        <Link className="button primary" to="/verification">
+        <Link className="button primary" to={buildPath('/verification')}>
           Перейти к верификации
         </Link>
       </div>

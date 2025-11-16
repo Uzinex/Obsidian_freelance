@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /staff/
+Sitemap: https://obsidianfreelance.com/sitemap.xml
+Sitemap: https://obsidianfreelance.com/sitemap-ru.xml
+Sitemap: https://obsidianfreelance.com/sitemap-uz.xml

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { fetchCategories, fetchOrders, fetchSkills } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useLocale } from '../context/LocaleContext.jsx';
 import { formatCurrency, formatDate } from '../utils/formatting.js';
 
 const orderTypeLabels = {
@@ -20,6 +21,7 @@ export default function OrdersPage() {
   const [skills, setSkills] = useState([]);
   const [loading, setLoading] = useState(true);
   const { isAuthenticated, user } = useAuth();
+  const { buildPath } = useLocale();
 
   const role = user?.profile?.role || user?.role;
 
@@ -79,7 +81,7 @@ export default function OrdersPage() {
           </div>
         </div>
         {role === 'client' && isAuthenticated && (
-          <Link to="/orders/create" className="button primary">
+          <Link to={buildPath('/orders/create')} className="button primary">
             Создать заказ
           </Link>
         )}
@@ -161,7 +163,7 @@ export default function OrdersPage() {
                     </span>
                   ))}
                 </div>
-                <Link to={`/orders/${order.id}`} className="button primary">
+                <Link to={buildPath(`/orders/${order.id}`)} className="button primary">
                   Открыть
                 </Link>
               </article>
