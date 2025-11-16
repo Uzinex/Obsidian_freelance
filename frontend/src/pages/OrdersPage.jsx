@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { fetchCategories, fetchOrders, fetchSkills } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { formatCurrency } from '../utils/formatCurrency.js';
+import { formatCurrency, formatDate } from '../utils/formatting.js';
 
 const orderTypeLabels = {
   urgent: 'Срочный',
@@ -148,7 +148,7 @@ export default function OrdersPage() {
                 </header>
                 <p>{summary}</p>
                 <div className="order-meta">
-                  <span>Дедлайн: {new Date(order.deadline).toLocaleDateString()}</span>
+                  <span>Дедлайн: {formatDate(order.deadline)}</span>
                   <span>
                     Выплата: {order.payment_type === 'hourly' ? 'Почасовая' : 'Фиксированная'} —{' '}
                     {formatCurrency(order.budget, order.currency)}

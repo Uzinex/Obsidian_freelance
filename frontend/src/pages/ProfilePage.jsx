@@ -18,7 +18,7 @@ import {
 import { useAuth } from '../context/AuthContext.jsx';
 import SkillSelector from '../components/SkillSelector.jsx';
 import NotificationCenter from '../components/notifications/NotificationCenter.jsx';
-import { formatCurrency } from '../utils/formatCurrency.js';
+import { formatCurrency, formatDateTime } from '../utils/formatting.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -464,7 +464,7 @@ export default function ProfilePage() {
                   <li key={transaction.id}>
                     <div>
                       <strong>{transaction.type}</strong>
-                      <span>{new Date(transaction.created_at).toLocaleString('ru-RU')}</span>
+                      <span>{formatDateTime(transaction.created_at)}</span>
                       {transaction.description && <p className="subtle">{transaction.description}</p>}
                     </div>
                     <div className="wallet-transaction-amount">

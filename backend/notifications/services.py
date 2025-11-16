@@ -17,6 +17,7 @@ from .models import (
     NotificationPreference,
 )
 from .emails import render_transactional_email
+from .formatting import normalize_locale
 from .webpush import render_webpush_payload
 
 DEFAULT_CHANNELS: tuple[str, ...] = (
@@ -375,6 +376,7 @@ class NotificationHub:
 
     def _send_email_delivery(self, delivery: NotificationDelivery) -> None:
         event = delivery.event
+        locale = self._resolve_delivery_locale(delivery)
         payload = render_transactional_email(
             event.event_type,
             {
@@ -383,11 +385,14 @@ class NotificationHub:
                 "title": event.title,
                 "body": event.body,
             },
+            locale=locale,
         )
         delivery.metadata = {
             "subject": payload.subject,
             "body": payload.body,
             "recipient": payload.recipient,
+            "headers": payload.headers,
+            "locale": locale,
         }
         delivery.status = NotificationDelivery.STATUS_SENT
         delivery.sent_at = timezone.now()
@@ -395,15 +400,43 @@ class NotificationHub:
 
     def _send_webpush_delivery(self, delivery: NotificationDelivery) -> None:
         event = delivery.event
-        payload = render_webpush_payload(event.title, event.body, event.data)
+        locale = self._resolve_delivery_locale(delivery)
+        payload = render_webpush_payload(
+            event.event_type,
+            {
+                **event.data,
+                "title": event.title,
+                "body": event.body,
+            },
+            locale=locale,
+        )
         delivery.metadata = {
             "title": payload.title,
             "body": payload.body,
             "url": payload.url,
+            "locale": locale,
         }
         delivery.status = NotificationDelivery.STATUS_SENT
         delivery.sent_at = timezone.now()
         delivery.save(update_fields=["metadata", "status", "sent_at"])
+
+    def _resolve_delivery_locale(self, delivery: NotificationDelivery) -> str:
+        event = delivery.event
+        candidate = event.data.get("locale") or event.data.get("language")
+        if candidate:
+            return normalize_locale(candidate)
+        pref = (
+            NotificationPreference.objects.filter(
+                user=event.recipient,
+                category=event.category,
+                channel=delivery.channel,
+            )
+            .only("language")
+            .first()
+        )
+        if pref:
+            return normalize_locale(pref.language)
+        return normalize_locale(None)
 
 
 notification_hub = NotificationHub()

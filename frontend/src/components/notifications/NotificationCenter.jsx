@@ -4,6 +4,7 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
 } from '../../api/client.js';
+import { formatDateTime } from '../../utils/formatting.js';
 
 const CATEGORY_LABELS = {
   chat: 'Чаты',
@@ -151,9 +152,7 @@ export default function NotificationCenter() {
                     </span>
                   ))}
                 </span>
-                <span className="notification-list__time">
-                  {new Date(item.created_at).toLocaleString('ru-RU', { hour12: false })}
-                </span>
+                <span className="notification-list__time">{formatDateTime(item.created_at)}</span>
               </div>
               <h4>{item.title}</h4>
               <p>{item.message}</p>

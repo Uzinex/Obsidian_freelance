@@ -3,6 +3,7 @@ import {
   fetchVerificationRequests,
   reviewVerificationRequest,
 } from '../api/client.js';
+import { formatDateTime } from '../utils/formatting.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -131,9 +132,9 @@ export default function VerificationRequestsPage() {
                       <div className="stack">
                         <strong>{profileName}</strong>
                         <small>Профиль #{request.profile}</small>
-                        <small>Создано: {new Date(request.created_at).toLocaleString()}</small>
+                        <small>Создано: {formatDateTime(request.created_at)}</small>
                         {request.reviewed_at && (
-                          <small>Обновлено: {new Date(request.reviewed_at).toLocaleString()}</small>
+                          <small>Обновлено: {formatDateTime(request.reviewed_at)}</small>
                         )}
                       </div>
                     </td>

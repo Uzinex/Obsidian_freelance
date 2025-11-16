@@ -19,6 +19,7 @@ import AboutPage from './pages/AboutPage.jsx';
 import ModerationQueuePage from './pages/ModerationQueuePage.jsx';
 import DisputeBackofficePage from './pages/DisputeBackofficePage.jsx';
 import NotificationSettingsPage from './pages/NotificationSettingsPage.jsx';
+import CookieConsentBanner from './components/CookieConsentBanner.jsx';
 
 export default function App() {
   const { token, user, login, isAuthenticated } = useAuth();
@@ -78,6 +79,7 @@ export default function App() {
         </Routes>
       </main>
       <Footer />
+      <CookieConsentBanner />
     </div>
   );
 }
