@@ -9,7 +9,8 @@
     "build:ssg": "vite build && vite build --ssr src/ssg-entry.jsx --outDir dist-ssr && node ./scripts/prerender.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
-    "i18n:lint": "node ./scripts/i18n-lint.mjs"
+    "i18n:lint": "node ./scripts/i18n-lint.mjs",
+    "i18n:pseudo": "node ./scripts/generate-pseudolocales.mjs"
   },
   "dependencies": {
     "@sentry/react": "^10.25.0",
@@ -22,6 +23,7 @@
     "react-router-dom": "^6.30.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.0",
     "@sentry/vite-plugin": "^4.6.0",
     "@types/react": "^18.3.26",
     "@types/react-dom": "^18.3.7",

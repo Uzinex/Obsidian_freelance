@@ -1,0 +1,20 @@
+{
+  "localesDir": "src/locales",
+  "sourceSuffix": ".source.json",
+  "targetLocale": "pseudo",
+  "prefix": "⟦",
+  "suffix": "⟧",
+  "expansionFactor": 0.35,
+  "vowelMap": {
+    "a": "à",
+    "e": "ē",
+    "i": "ï",
+    "o": "ō",
+    "u": "ü",
+    "A": "Å",
+    "E": "Ē",
+    "I": "Ï",
+    "O": "Ö",
+    "U": "Ü"
+  }
+}

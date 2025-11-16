@@ -1,0 +1,13 @@
+{
+  "app_ui.header.nav.home": "⟦Hōmē～～⟧",
+  "app_ui.header.nav.orders": "⟦Ördērs～～～⟧",
+  "app_ui.home.hero.title": "⟦Ünïtïng ēlïtē tēàms fōr àmbïtïōüs prōjēcts～～～～～～～～～～～～～～～⟧",
+  "app_ui.home.hero.secondaryCta": "⟦Brōwsē wōrk～～～～⟧",
+  "app_ui.orders.page.description": "⟦Fïltēr lïvē prōjēcts by càtēgōrïēs, skïlls, ànd ēngàgēmēnt rülēs.～～～～～～～～～～～～～～～～～～～～～～～⟧",
+  "app_ui.orders.list.empty": "⟦Nō màtchïng ōrdērs yēt. Try àdjüstïng thē fïltērs.～～～～～～～～～～～～～～～～～～⟧",
+  "app_ui.auth.login.error": "⟦Ïncōrrēct lōgïn ōr pàsswōrd.～～～～～～～～～～⟧",
+  "app_ui.auth.register.submit": "⟦Sïgn üp～～～⟧",
+  "app_ui.profile.wallet.empty": "⟦Wàllēt trànsàctïōns wïll àppēàr hērē àftēr yōür fïrst pàyōüt.～～～～～～～～～～～～～～～～～～～～～～⟧",
+  "app_ui.notificationCenter.filters.category": "⟦Càtēgōry～～～⟧",
+  "app_ui.chat.quickActions.open_dispute": "⟦Öpēn à dïspütē～～～～～⟧"
+}
