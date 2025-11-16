@@ -62,34 +62,47 @@ class JWTAuthentication(authentication.BaseAuthentication):
         # responding with spurious ``401`` errors.
         if token.lower() in {"", "null", "undefined", "none"}:
             return None
+
+        allow_anonymous_fallback = request.method in SAFE_METHODS
+
         try:
             payload = decode_jwt(token, token_type="access")
+            user_id = payload.get("sub")
+            session_id = payload.get("session_id")
+            if not user_id or not session_id:
+                raise exceptions.AuthenticationFailed("Token missing required claims")
+            try:
+                session = AuthSession.objects.select_related("user").get(
+                    id=session_id,
+                    user_id=user_id,
+                )
+            except AuthSession.DoesNotExist as exc:
+                raise exceptions.AuthenticationFailed("Session not found") from exc
+            if session.revoked_at:
+                raise exceptions.AuthenticationFailed("Session revoked")
+            if session.refresh_token_expires_at <= timezone.now():
+                raise exceptions.AuthenticationFailed("Session expired")
+            user = session.user
+            if not user.is_active:
+                raise exceptions.AuthenticationFailed("User inactive or deleted")
+            if (
+                settings.AUTH_REQUIRE_2FA_FOR_STAFF
+                and (user.is_staff or user.is_superuser)
+                and not payload.get("two_factor_verified")
+            ):
+                raise exceptions.AuthenticationFailed(
+                    "Two-factor authentication required"
+                )
         except JWTDecodeError as exc:
-            raise exceptions.AuthenticationFailed(str(exc)) from exc
-        user_id = payload.get("sub")
-        session_id = payload.get("session_id")
-        if not user_id or not session_id:
-            raise exceptions.AuthenticationFailed("Token missing required claims")
-        try:
-            session = AuthSession.objects.select_related("user").get(
-                id=session_id,
-                user_id=user_id,
-            )
-        except AuthSession.DoesNotExist as exc:
-            raise exceptions.AuthenticationFailed("Session not found") from exc
-        if session.revoked_at:
-            raise exceptions.AuthenticationFailed("Session revoked")
-        if session.refresh_token_expires_at <= timezone.now():
-            raise exceptions.AuthenticationFailed("Session expired")
-        user = session.user
-        if not user.is_active:
-            raise exceptions.AuthenticationFailed("User inactive or deleted")
-        if (
-            settings.AUTH_REQUIRE_2FA_FOR_STAFF
-            and (user.is_staff or user.is_superuser)
-            and not payload.get("two_factor_verified")
-        ):
-            raise exceptions.AuthenticationFailed("Two-factor authentication required")
+            auth_exc = exceptions.AuthenticationFailed(str(exc))
+            if allow_anonymous_fallback:
+                return None
+            raise auth_exc from exc
+        except exceptions.AuthenticationFailed as exc:
+            if allow_anonymous_fallback:
+                return None
+            raise
+
         request.auth_payload = payload
         request.auth_session = session
         return user, payload
