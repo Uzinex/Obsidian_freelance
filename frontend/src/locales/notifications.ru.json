@@ -1,0 +1,5 @@
+{
+  "notifications.digest.summary": "В вашем аккаунте Obsidian {count} непрочитанных уведомлений.",
+  "notifications.alert.dispute_opened": "Спор №{case_id} ожидает вашего ответа.",
+  "notifications.settings.quietHours": "Тихие часы"
+}

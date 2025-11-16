@@ -1,0 +1,5 @@
+{
+  "emails.verification.subject": "Confirm your Obsidian account",
+  "emails.verification.body": "Finish verification to unlock contracts and payouts.",
+  "emails.payout.subject": "Payout sent for contract #{contract_id}"
+}

@@ -1,0 +1,13 @@
+{
+  "app_ui.header.nav.home": "Главная",
+  "app_ui.header.nav.orders": "Работы",
+  "app_ui.home.hero.title": "Объединяем лучшие команды для амбициозных проектов",
+  "app_ui.home.hero.secondaryCta": "Смотреть работы",
+  "app_ui.orders.page.description": "Фильтруйте открытые проекты по категориям, навыкам и формату сотрудничества.",
+  "app_ui.orders.list.empty": "Не найдено подходящих заказов. Попробуйте изменить фильтры.",
+  "app_ui.auth.login.error": "Неверный логин или пароль.",
+  "app_ui.auth.register.submit": "Зарегистрироваться",
+  "app_ui.profile.wallet.empty": "Операции появятся здесь после первой выплаты.",
+  "app_ui.notificationCenter.filters.category": "Категория",
+  "app_ui.chat.quickActions.open_dispute": "Открыть спор"
+}

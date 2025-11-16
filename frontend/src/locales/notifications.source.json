@@ -1,0 +1,5 @@
+{
+  "notifications.digest.summary": "{count} unread notifications in your Obsidian account.",
+  "notifications.alert.dispute_opened": "Dispute #{case_id} is awaiting your response.",
+  "notifications.settings.quietHours": "Quiet hours"
+}

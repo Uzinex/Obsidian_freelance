@@ -1,0 +1,13 @@
+{
+  "app_ui.header.nav.home": "Home",
+  "app_ui.header.nav.orders": "Orders",
+  "app_ui.home.hero.title": "Uniting elite teams for ambitious projects",
+  "app_ui.home.hero.secondaryCta": "Browse work",
+  "app_ui.orders.page.description": "Filter live projects by categories, skills, and engagement rules.",
+  "app_ui.orders.list.empty": "No matching orders yet. Try adjusting the filters.",
+  "app_ui.auth.login.error": "Incorrect login or password.",
+  "app_ui.auth.register.submit": "Sign up",
+  "app_ui.profile.wallet.empty": "Wallet transactions will appear here after your first payout.",
+  "app_ui.notificationCenter.filters.category": "Category",
+  "app_ui.chat.quickActions.open_dispute": "Open a dispute"
+}
