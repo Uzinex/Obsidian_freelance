@@ -4,6 +4,21 @@ from rest_framework.permissions import BasePermission, SAFE_METHODS
 from . import rbac
 
 
+def is_verification_admin(user) -> bool:
+    """Return True when the user can moderate verification requests."""
+
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "is_superuser", False):
+        return True
+    admin_email = getattr(settings, "VERIFICATION_ADMIN_EMAIL", "").strip().lower()
+    if admin_email and getattr(user, "email", None):
+        if user.email.lower() == admin_email:
+            # Keep backwards compatibility with the legacy single-admin flow.
+            return True
+    return getattr(user, "is_staff", False)
+
+
 class IsProfileVerifiedOrReadOnly(BasePermission):
     message = "Для выполнения этого действия необходимо пройти верификацию."
 
@@ -21,11 +36,7 @@ class IsVerificationAdmin(BasePermission):
     message = "Только администратор верификации может выполнить это действие."
 
     def has_permission(self, request, view):
-        user = request.user
-        if not user or not user.is_authenticated:
-            return False
-        admin_email = getattr(settings, "VERIFICATION_ADMIN_EMAIL", "").lower()
-        return user.is_staff and user.email.lower() == admin_email
+        return is_verification_admin(getattr(request, "user", None))
 
 
 class RoleBasedAccessPermission(BasePermission):

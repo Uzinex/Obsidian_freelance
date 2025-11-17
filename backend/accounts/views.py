@@ -11,7 +11,7 @@ from notifications.models import NotificationEvent
 
 from .audit import audit_logger
 from .models import AuditEvent, Profile, VerificationRequest, Wallet
-from .permissions import IsVerificationAdmin
+from .permissions import IsVerificationAdmin, is_verification_admin
 from .serializers import (
     ProfileSerializer,
     RegistrationSerializer,
@@ -183,12 +183,7 @@ class VerificationRequestViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        admin_email = getattr(settings, "VERIFICATION_ADMIN_EMAIL", "").lower()
-        if (
-            user.is_authenticated
-            and user.is_staff
-            and user.email.lower() == admin_email
-        ):
+        if is_verification_admin(user):
             return VerificationRequest.objects.select_related(
                 "profile", "profile__user", "reviewed_by"
             )
