@@ -44,6 +44,7 @@ export default function OrdersPage() {
   const seo = publicContent[locale].seo.orders;
 
   const role = user?.profile?.role || user?.role;
+  const paramsKey = params.toString();
 
   useEffect(() => {
     async function loadFilters() {
@@ -65,7 +66,7 @@ export default function OrdersPage() {
     async function loadOrders() {
       setLoading(true);
       try {
-        const query = Object.fromEntries(params.entries());
+        const query = toObject(params);
         const data = await fetchOrders(query);
         setOrders(data.results || data);
       } catch (error) {
@@ -75,7 +76,7 @@ export default function OrdersPage() {
       }
     }
     loadOrders();
-  }, [params]);
+  }, [paramsKey]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -118,7 +119,7 @@ export default function OrdersPage() {
       return;
     }
     window.localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(toObject(params)));
-  }, [params]);
+  }, [paramsKey]);
 
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
