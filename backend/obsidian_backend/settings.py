@@ -268,6 +268,13 @@ DISPUTE_ENABLED = communications_flags.is_feature_enabled("dispute.enabled")
 NOTIFY_EMAIL_ENABLED = communications_flags.is_feature_enabled("notify.email")
 NOTIFY_WEBPUSH_ENABLED = communications_flags.is_feature_enabled("notify.webpush")
 
+AI_GATEWAY_URL = os.getenv("AI_GATEWAY_URL", "http://localhost:8081").rstrip("/")
+AI_GATEWAY_TIMEOUT = float(os.getenv("AI_GATEWAY_TIMEOUT", "1.5"))
+AI_GATEWAY_API_KEY = os.getenv("AI_GATEWAY_API_KEY", "")
+AI_GATEWAY_ENABLE_TELEMETRY = get_bool_env(
+    "AI_GATEWAY_ENABLE_TELEMETRY", default=True
+)
+
 CHAT_RATE_LIMIT_USER_PER_SECOND = int(os.getenv("CHAT_RATE_LIMIT_USER_PER_SECOND", "5"))
 CHAT_RATE_LIMIT_USER_PER_MINUTE = int(os.getenv("CHAT_RATE_LIMIT_USER_PER_MINUTE", "30"))
 CHAT_RATE_LIMIT_THREAD_PER_SECOND = int(os.getenv("CHAT_RATE_LIMIT_THREAD_PER_SECOND", "8"))

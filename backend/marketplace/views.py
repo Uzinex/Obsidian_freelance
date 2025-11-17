@@ -4,9 +4,10 @@ from django.conf import settings
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import filters, permissions, serializers, status, viewsets
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from accounts import rbac
 from accounts.models import Profile
@@ -21,6 +22,8 @@ from .serializers import (
     OrderSerializer,
     SkillSerializer,
 )
+from .services.recommendations import execute_match
+from .services.semantic_search import execute_semantic_search
 
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -313,6 +316,74 @@ class ContractViewSet(viewsets.ReadOnlyModelViewSet):
             )
         serializer = self.get_serializer(contract)
         return Response(serializer.data)
+
+
+class _LocaleMixin:
+    @staticmethod
+    def resolve_locale(request) -> str:
+        header = request.headers.get("Accept-Language") if request else None
+        if header:
+            return header.split(",")[0].strip() or "ru"
+        return "ru"
+
+
+class InviteRecommendationView(_LocaleMixin, APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        order_id = request.query_params.get("order_id")
+        if not order_id:
+            return Response(
+                {"detail": "order_id is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        order = get_object_or_404(
+            Order.objects.select_related("client", "client__user").prefetch_related("required_skills"),
+            pk=order_id,
+        )
+        actor = getattr(request.user, "profile", None)
+        if actor is None or actor != order.client:
+            raise PermissionDenied("Можно рекомендовать только для своих заказов.")
+        locale = self.resolve_locale(request)
+        result = execute_match(order=order, profile=None, locale=locale)
+        return Response({"invite_recommendations": result.get("invite_recommendations", []), "source": result.get("source", "ai")})
+
+
+class FreelancerRecommendationView(_LocaleMixin, APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        profile = getattr(request.user, "profile", None)
+        if profile is None or profile.role != Profile.ROLE_FREELANCER:
+            raise PermissionDenied("Требуется профиль исполнителя.")
+        locale = self.resolve_locale(request)
+        result = execute_match(order=None, profile=profile, locale=locale)
+        return Response({"order_recommendations": result.get("order_recommendations", []), "source": result.get("source", "ai")})
+
+
+class SemanticSearchView(_LocaleMixin, APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        query = request.query_params.get("query")
+        if not query:
+            return Response(
+                {"detail": "query is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        entity = request.query_params.get("entity", "orders")
+        if entity not in {"orders", "profiles", "portfolio"}:
+            return Response(
+                {"detail": "entity must be orders, profiles or portfolio"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        limit = int(request.query_params.get("limit", 20))
+        locale = self.resolve_locale(request)
+        result = execute_semantic_search(
+            query=query,
+            entity=entity,
+            locale=locale,
+            limit=limit,
+        )
+        return Response(result)
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, RoleBasedAccessPermission])
     def complete(self, request, pk=None):
