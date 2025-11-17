@@ -256,14 +256,18 @@ class ProfileSerializer(serializers.ModelSerializer):
         "city",
         "street",
         "house",
+        "headline",
     }
 
     class Meta:
         model = Profile
         fields = (
             "id",
+            "slug",
             "user",
             "role",
+            "headline",
+            "bio",
             "freelancer_type",
             "company_name",
             "company_country",
@@ -274,12 +278,21 @@ class ProfileSerializer(serializers.ModelSerializer):
             "phone_number",
             "avatar",
             "skills",
+            "hourly_rate",
+            "min_budget",
+            "availability",
+            "timezone",
+            "languages",
+            "location",
+            "links",
+            "visibility",
             "country",
             "city",
             "street",
             "house",
             "is_completed",
             "is_verified",
+            "last_activity_at",
             "wallet",
             "contracts",
             "staff_roles",
@@ -289,7 +302,9 @@ class ProfileSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             "id",
+            "slug",
             "is_verified",
+            "last_activity_at",
             "created_at",
             "updated_at",
             "wallet",
