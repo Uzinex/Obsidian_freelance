@@ -1,0 +1,74 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "16m"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header X-Request-ID $request_id;
+      proxy_read_timeout 75s;
+      proxy_connect_timeout 15s;
+      add_header X-Frame-Options "DENY";
+    nginx.ingress.kubernetes.io/server-snippet: |
+      location = /healthz {
+        access_log off;
+        return 200 'ok';
+      }
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: api.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8000
+  tls:
+    - hosts:
+        - api.example.com
+      secretName: api-example-com-tls
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: registry.example.com/app/backend:sha-xxxx
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /healthz?deep=false
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz?deep=true
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "768Mi"
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
