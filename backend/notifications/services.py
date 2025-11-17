@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone as dt_timezone
 from typing import Mapping, Sequence
 from zoneinfo import ZoneInfo
 
@@ -229,7 +229,7 @@ class NotificationHub:
                     microsecond=0,
                 )
                 target_date += timedelta(days=1)
-            return target_date.astimezone(timezone.utc)
+            return target_date.astimezone(dt_timezone.utc)
         return None
 
     def _attach_to_digest(
@@ -265,8 +265,8 @@ class NotificationHub:
                 microsecond=0,
             )
             period_end = period_start + window
-        period_start = period_start.astimezone(timezone.utc)
-        period_end = period_end.astimezone(timezone.utc)
+        period_start = period_start.astimezone(dt_timezone.utc)
+        period_end = period_end.astimezone(dt_timezone.utc)
         digest, _ = NotificationDigest.objects.get_or_create(
             user=event.recipient,
             channel=channel,
