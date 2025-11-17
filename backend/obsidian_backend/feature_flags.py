@@ -26,6 +26,12 @@ FEATURE_FLAGS: Mapping[str, bool] = {
     "dispute.enabled": _get_bool_env("FEATURE_DISPUTE_ENABLED", default=False),
     "notify.email": _get_bool_env("FEATURE_NOTIFY_EMAIL", default=True),
     "notify.webpush": _get_bool_env("FEATURE_NOTIFY_WEBPUSH", default=False),
+    "ai.match": _get_bool_env("FEATURE_AI_MATCH", default=False),
+    "ai.coach": _get_bool_env("FEATURE_AI_COACH", default=False),
+    "ai.scam_filter": _get_bool_env("FEATURE_AI_SCAM_FILTER", default=False),
+    "ai.dispute_triage": _get_bool_env("FEATURE_AI_DISPUTE_TRIAGE", default=False),
+    "ai.search": _get_bool_env("FEATURE_AI_SEARCH", default=False),
+    "ai.summaries": _get_bool_env("FEATURE_AI_SUMMARIES", default=False),
 }
 
 
