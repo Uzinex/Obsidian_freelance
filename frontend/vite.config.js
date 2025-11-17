@@ -49,11 +49,26 @@ const sentryPlugin = hasSentryConfig && sentryVitePlugin
     ]
   : [];
 
+const reactPlugin = react({
+  fastRefresh: false,
+});
+
 export default defineConfig({
-  plugins: [react(), ...sentryPlugin],
+  plugins: [reactPlugin, ...sentryPlugin],
   resolve: {
     alias: {
       ...sentryAlias,
+    },
+  },
+  build: {
+    sourcemap: true,
+    manifest: true,
+    rollupOptions: {
+      output: {
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]',
+      },
     },
   },
   server: {

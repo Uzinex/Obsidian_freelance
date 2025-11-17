@@ -32,6 +32,18 @@ export const publicContent = {
         title: 'Блог и новости платформы Obsidian',
         description: 'Обновления продукта, кейсы команд и инсайты по работе в Узбекистане.',
       },
+      orders: {
+        title: 'Биржа IT-заказов Obsidian Freelance',
+        description: 'Актуальные проекты с дедлайнами, бюджетами и escrow-защитой.',
+      },
+      freelancers: {
+        title: 'Каталог проверенных фрилансеров',
+        description: 'Команды и специалисты с KYC-верификацией и SLA по ответам.',
+      },
+      pricing: {
+        title: 'Тарифы и комиссии Obsidian Freelance',
+        description: 'Escrow, кураторство и выплаты в сумах без скрытых условий.',
+      },
       about: {
         title: 'О платформе Obsidian Freelance',
         description: 'Кураторская команда и партнёры, которые строят рынок удалённой работы в Узбекистане.',
@@ -64,6 +76,57 @@ export const publicContent = {
         ratingValue: '4.9',
         reviewCount: '124',
       },
+    },
+    pricing: {
+      tiers: [
+        {
+          name: 'Escrow Base',
+          price: 0,
+          currency: 'UZS',
+          description: 'Базовый тариф для сделок до 100 млн сум.',
+          features: ['Freeze бюджета в банке-партнёре', 'Контроль этапов и артефактов', 'Стандартный SLA 8 часов'],
+        },
+        {
+          name: 'Growth+',
+          price: 0.025,
+          currency: 'budget_share',
+          description: 'Куратор и автоматизация платежей для продуктовых команд.',
+          features: ['Персональный куратор', 'Гибридные выплаты (UZCARD, Swift)', 'SLA 2 часа на спор'],
+        },
+        {
+          name: 'Enterprise Escrow',
+          price: 'custom',
+          currency: 'UZS',
+          description: 'Мультивалютные сделки и публичный аудит логов.',
+          features: ['DPA и audit log', 'Выплаты в UZS/USD', 'Приоритетный саппорт 24/7'],
+        },
+      ],
+      payouts: [
+        'Пополнение через Uzcard/Humo, корпоративный счёт или Swift.',
+        'Выплаты на карты Uzcard/Humo, юридические лица и SWIFT-компании.',
+        'Комиссия за ввод/вывод — 0%, банк удерживает собственные тарифы.',
+      ],
+      changelog: [
+        { version: '2025.01', date: '2025-01-04', summary: 'Добавлен автоматический расчёт staged-платежей.' },
+        { version: '2024.12', date: '2024-12-10', summary: 'Расширена отчётность по Escrow в личном кабинете.' },
+        { version: '2024.11', date: '2024-11-02', summary: 'Появился публичный лог споров и SLA.' },
+      ],
+      offers: [
+        {
+          '@type': 'Offer',
+          priceCurrency: 'UZS',
+          price: '0',
+          description: 'Escrow Base без комиссии за ввод средств.',
+          name: 'Escrow Base',
+        },
+        {
+          '@type': 'Offer',
+          priceCurrency: 'UZS',
+          price: '2.5%',
+          description: 'Growth+ с кураторством и автоматизацией.',
+          name: 'Growth+ Escrow',
+        },
+      ],
     },
     reviews: [
       {
@@ -192,6 +255,18 @@ export const publicContent = {
         title: 'Blog va yangiliklar',
         description: 'Mahsulot yangilanishlari hamda muvaffaqiyat hikoyalari.',
       },
+      orders: {
+        title: 'Obsidian Freelancer — buyurtmalar vitrinasi',
+        description: 'Escrow bilan himoyalangan loyihalar va tezkor filtrlar.',
+      },
+      freelancers: {
+        title: 'Tekshirilgan frilanserlar katalogi',
+        description: 'KYC va SLA bilan tasdiqlangan jamoalar.',
+      },
+      pricing: {
+        title: 'Tariflar va komissiyalar',
+        description: 'Escrow, kuratorlik va to‘lovlar bo‘yicha shaffof jadval.',
+      },
       about: {
         title: 'Obsidian haqida',
         description: 'Kuratorlar va hamkorlar bozorda yangi meʼyorlarni yaratadi.',
@@ -205,6 +280,57 @@ export const publicContent = {
         privacy: { title: 'Maxfiylik siyosati', description: 'Maʼlumotlarni qayta ishlash tartibi.' },
         cookies: { title: 'Cookie siyosati', description: 'Cookie fayllardan foydalanish.' },
       },
+    },
+    pricing: {
+      tiers: [
+        {
+          name: 'Escrow Base',
+          price: 0,
+          currency: 'UZS',
+          description: '100 mln so‘mgacha bo‘lgan loyihalar uchun standart paket.',
+          features: ['Bank hisobida mablag‘ni muzlatish', 'Bosqichma-bosqich to‘lov', 'SLA 8 soat ichida javob'],
+        },
+        {
+          name: 'Growth+',
+          price: 0.025,
+          currency: 'budget_share',
+          description: 'Kurator va avtomatlashtirilgan to‘lovlar bilan paket.',
+          features: ['Shaxsiy kurator', 'Uzcard/Humo va Swift to‘lovlari', 'SLA 2 soat ichida javob'],
+        },
+        {
+          name: 'Enterprise Escrow',
+          price: 'custom',
+          currency: 'UZS',
+          description: 'Katta korporativ loyihalar uchun moslashtirilgan shartlar.',
+          features: ['Audit log', 'Valyutalararo to‘lovlar', '24/7 qo‘llab-quvvatlash'],
+        },
+      ],
+      payouts: [
+        'Uzcard/Humo, korporativ hisob va Swift orqali mablag‘ kiritish.',
+        'To‘lovlar Uzcard/Humo kartalari va yuridik shaxslarga o‘tkazmalar orqali.',
+        'Kiritish/chiqarish uchun platforma komissiyasi 0%.',
+      ],
+      changelog: [
+        { version: '2025.01', date: '2025-01-04', summary: 'Staged-to‘lovlar uchun avtomatik hisoblash joriy qilindi.' },
+        { version: '2024.12', date: '2024-12-10', summary: 'Escrow holatlari bo‘yicha yangilangan hisobotlar.' },
+        { version: '2024.11', date: '2024-11-02', summary: 'Ochiq escrow changelog bo‘limi qo‘shildi.' },
+      ],
+      offers: [
+        {
+          '@type': 'Offer',
+          priceCurrency: 'UZS',
+          price: '0',
+          description: 'Escrow Base — kichik loyihalar uchun bepul.',
+          name: 'Escrow Base',
+        },
+        {
+          '@type': 'Offer',
+          priceCurrency: 'UZS',
+          price: '2.5%',
+          description: 'Growth+ — kurator va avtomatlashtirish bilan.',
+          name: 'Growth+ Escrow',
+        },
+      ],
     },
     organization: {
       name: 'Obsidian Freelance',

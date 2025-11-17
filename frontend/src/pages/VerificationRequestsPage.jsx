@@ -4,6 +4,7 @@ import {
   reviewVerificationRequest,
 } from '../api/client.js';
 import { formatDateTime } from '../utils/formatting.js';
+import Icon from '../components/Icon.jsx';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -85,11 +86,7 @@ export default function VerificationRequestsPage() {
       <header className="form-header" style={{ marginBottom: '1.5rem' }}>
         <div>
           <span className="form-pill">
-            <img
-              src="https://img.icons8.com/ios-filled/24/1f1f1f/checked-user-male.png"
-              alt=""
-              aria-hidden="true"
-            />
+            <Icon name="check" size={20} decorative />
             Администрирование
           </span>
           <h1>Заявки на верификацию</h1>
@@ -147,7 +144,7 @@ export default function VerificationRequestsPage() {
                           Номер: {request.document_number}
                         </small>
                         {mediaUrl && (
-                          <a href={mediaUrl} target="_blank" rel="noreferrer" className="link">
+                          <a href={mediaUrl} target="_blank" rel="noopener noreferrer" className="link">
                             Открыть документ
                           </a>
                         )}

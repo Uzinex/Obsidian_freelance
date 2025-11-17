@@ -44,7 +44,7 @@ export default function ContactsPage() {
         <ul>
           {org.sameAs.map((link) => (
             <li key={link}>
-              <a href={link} target="_blank" rel="noreferrer">
+              <a href={link} target="_blank" rel="noopener noreferrer">
                 {link}
               </a>
             </li>

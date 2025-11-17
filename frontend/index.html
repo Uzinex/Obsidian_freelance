@@ -1,16 +1,113 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
     <title>Obsidian Freelance</title>
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://cdn.obsidianfreelance.com" crossorigin />
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap&subset=latin-ext,cyrillic"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap&subset=latin-ext,cyrillic"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap&subset=latin-ext,cyrillic"
+      />
+    </noscript>
+    <link
+      rel="preload"
+      as="image"
+      href="https://cdn.obsidianfreelance.com/meta/ru-home.png"
+      imagesrcset="https://cdn.obsidianfreelance.com/meta/ru-home.png 1x, https://cdn.obsidianfreelance.com/meta/ru-home.png 2x"
+      imagesizes="100vw"
+      fetchpriority="high"
+    />
+    <link
+      rel="preload"
+      as="image"
+      href="https://cdn.obsidianfreelance.com/meta/uz-home.png"
+      imagesrcset="https://cdn.obsidianfreelance.com/meta/uz-home.png 1x, https://cdn.obsidianfreelance.com/meta/uz-home.png 2x"
+      imagesizes="100vw"
+    />
+    <link
+      rel="preload"
+      as="image"
+      href="/logo.svg"
+      type="image/svg+xml"
+      integrity="sha384-w4S+JQN9wbVm2L5a8hf1GN/uolJZ9YqPyOElFb+qHgDgp/nt9q/Z40RDKLsRqEzQ"
+      crossorigin="anonymous"
+    />
+    <style>
+      :root {
+        font-family: 'Inter', 'Inter var', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        color: #10002b;
+        background-color: #ffffff;
+        line-height: 1.6;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+      }
+      .app-shell {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      .main-content {
+        flex: 1;
+        width: 100%;
+      }
+      .button {
+        border-radius: 999px;
+        border: none;
+        font-weight: 600;
+      }
+    </style>
+    <script>
+      (function () {
+        const supported = { ru: 'ru-RU', uz: 'uz-UZ' };
+        const segments = (window.location.pathname || '/').split('/').filter(Boolean);
+        const current = supported[segments[0]] ? segments[0] : 'ru';
+        const html = document.documentElement;
+        html.lang = supported[current];
+        html.setAttribute('data-locale', current);
+        const basePath = segments.slice(supported[segments[0]] ? 1 : 0).join('/') || '';
+        const pathSuffix = basePath ? `/${basePath}` : '/';
+        const baseUrl = 'https://obsidianfreelance.com';
+        Object.keys(supported).forEach((loc) => {
+          if (document.querySelector(`link[rel="alternate"][hreflang="${loc}"]`)) {
+            return;
+          }
+          const link = document.createElement('link');
+          link.setAttribute('rel', 'alternate');
+          link.setAttribute('hreflang', loc);
+          link.setAttribute('href', `${baseUrl}/${loc}${pathSuffix === '/' ? '' : pathSuffix}`);
+          document.head.appendChild(link);
+        });
+        if (!document.querySelector('link[rel="alternate"][hreflang="x-default"]')) {
+          const defaultLink = document.createElement('link');
+          defaultLink.setAttribute('rel', 'alternate');
+          defaultLink.setAttribute('hreflang', 'x-default');
+          defaultLink.setAttribute('href', `${baseUrl}/ru${pathSuffix === '/' ? '' : pathSuffix}`);
+          document.head.appendChild(defaultLink);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>

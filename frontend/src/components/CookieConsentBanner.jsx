@@ -173,19 +173,19 @@ export default function CookieConsentBanner() {
           <h3>{copy.title}</h3>
           <p>{copy.description}</p>
           <p className="cookie-banner__links">
-            <a href="/legal/terms" target="_blank" rel="noreferrer">
+            <a href="/legal/terms" target="_blank" rel="noopener noreferrer">
               {copy.links.terms}
             </a>
             <span aria-hidden="true">·</span>
-            <a href="/legal/privacy" target="_blank" rel="noreferrer">
+            <a href="/legal/privacy" target="_blank" rel="noopener noreferrer">
               {copy.links.privacy}
             </a>
             <span aria-hidden="true">·</span>
-            <a href="/legal/cookies" target="_blank" rel="noreferrer">
+            <a href="/legal/cookies" target="_blank" rel="noopener noreferrer">
               {copy.links.cookies}
             </a>
             <span aria-hidden="true">·</span>
-            <a href="/legal/aml-kyc" target="_blank" rel="noreferrer">
+            <a href="/legal/aml-kyc" target="_blank" rel="noopener noreferrer">
               {copy.links.aml}
             </a>
           </p>

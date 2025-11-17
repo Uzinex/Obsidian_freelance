@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useLocale } from '../context/LocaleContext.jsx';
+import Icon from './Icon.jsx';
 
 export default function Header() {
   const { isAuthenticated } = useAuth();
@@ -12,47 +13,53 @@ export default function Header() {
       {
         to: '/',
         label: 'Главная',
-        icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/home.png',
+        icon: 'home',
       },
       {
         to: '/about',
         label: 'О нас',
-        icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/info.png',
+        icon: 'info',
       },
       {
         to: '/how-it-works',
         label: 'Как это работает',
-        icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/idea.png',
+        icon: 'idea',
       },
       {
         to: '/escrow',
         label: 'Escrow',
-        icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/safe.png',
+        icon: 'escrow',
       },
     ];
 
     base.push({
       to: '/orders',
       label: 'Работы',
-      icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/task.png',
+      icon: 'orders',
     });
 
     base.push({
       to: '/freelancers',
       label: 'Фрилансеры',
-      icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/conference-call.png',
+      icon: 'team',
+    });
+
+    base.push({
+      to: '/pricing',
+      label: 'Тарифы',
+      icon: 'bookmark',
     });
 
     if (isAuthenticated) {
       base.push({
         to: '/profile',
         label: 'Профиль',
-        icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/user-male-circle.png',
+        icon: 'user',
       });
       base.push({
         to: '/settings/notifications',
         label: 'Уведомления',
-        icon: 'https://img.icons8.com/ios-filled/24/1f1f1f/appointment-reminders.png',
+        icon: 'bell',
       });
     }
 
@@ -62,8 +69,15 @@ export default function Header() {
   return (
     <header className="header">
       <div className="header-inner">
-        <Link to={buildPath('/') } className="header-logo">
-          <img src="/logo.svg" alt="Obsidian Freelance" />
+        <Link to={buildPath('/')} className="header-logo">
+          <img
+            src="/logo.svg"
+            alt="Obsidian Freelance"
+            loading="lazy"
+            decoding="async"
+            width="40"
+            height="40"
+          />
           <div className="header-logo-text">
             <span>OBSIDIAN</span>
             <strong>FREELANCE</strong>
@@ -76,7 +90,7 @@ export default function Header() {
               to={buildPath(item.to)}
               className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}
             >
-              <img src={item.icon} alt="" aria-hidden="true" className="nav-icon" />
+              <Icon name={item.icon} size={20} className="nav-icon" decorative />
               <span>{item.label}</span>
             </NavLink>
           ))}
