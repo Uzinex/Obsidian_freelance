@@ -1,0 +1,9 @@
+Assalomu alaykum!
+
+Obsidian xizmatida roʻyxatdan oʻtish uchun tasdiqlash kodi: {{ code }}
+
+Kod 10 daqiqa davomida amal qiladi. Uni hech kimga bermang.
+
+Agar siz bu soʻrovni yubormagan boʻlsangiz, xatni eʼtiborsiz qoldiring.
+
+Obsidian jamoasi
