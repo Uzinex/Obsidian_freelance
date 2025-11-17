@@ -10,8 +10,12 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 
 function resolveAvatar(url) {
   if (!url) return '';
-  if (url.startsWith('http')) return url;
-  return `${API_BASE_URL}${url}`;
+  try {
+    return new URL(url, API_BASE_URL).toString();
+  } catch (error) {
+    console.error('Не удалось собрать URL аватара', error);
+    return url;
+  }
 }
 
 function buildAvatarSrcSet(src) {
