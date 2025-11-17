@@ -1,24 +1,63 @@
-# Postmortem Template
+# Postmortem & Incident Communication Template
 
-## Summary
-Provide a concise overview of the incident, including affected services, customer impact, and resolution status.
+## 1. Incident communications
 
-## Timeline
+### Initial customer update
+```
+Subject: [Incident] <Service/Component> degradation
+Timestamp (UTC): <hh:mm>
+Statuspage component(s): <API/Web/Payments/Webhooks/DB/CDN>
+Impact: <summary of user impact>
+Next update: <+30 minutes>
+```
+
+### Update (every 30 min or on status change)
+```
+Timestamp (UTC): <hh:mm>
+Current status: <investigating/mitigating/monitoring>
+Actions since last update: <bullet list>
+Estimated next milestone: <ETA>
+```
+
+### Resolved message
+```
+Timestamp (UTC): <hh:mm>
+Incident window: <start - end>
+Resolution summary: <root cause + fix>
+Customer actions: <e.g., retry payments>
+Follow-up: Postmortem will be published by <date>.
+```
+
+## 2. Postmortem document
+
+### Summary
+Provide a concise overview of the incident, including affected services, customer impact, SLAs breached, and resolution status.
+
+### Timeline
 List key events with timestamps (UTC) covering detection, response, mitigation, and recovery.
 
-## Root Cause
-Describe the primary factors that led to the incident, including technical and organizational contributors.
+### Root Cause Analysis
+Describe the technical and organizational contributors that led to the incident. Identify triggering event, contributing factors, and detection gaps.
 
-## Impact
-Detail the scope of impact: affected features, duration, number of users, and any regulatory or financial implications.
+### Impact
+Detail scope: affected features, duration, number of users/orders/payments, regulatory or financial implications.
 
-## What Went Well / What Went Wrong
-Highlight effective responses and areas for improvement in detection, communication, tooling, or process.
+### Detection & Response
+- What alerted us (Statuspage, Sentry, Prometheus, customer reports)?
+- How long to acknowledge, mitigate, and resolve?
+- Which runbooks or DR steps were executed?
 
-## Action Items
-Document follow-up tasks with due dates and responsible roles. Include preventive, detective, and corrective measures.
+### Communications
+Summarize Statuspage updates, customer emails, and internal briefings. Link to incident templates above.
 
+### Preventive + Corrective Actions
 | Action Item | Owner | Due Date | Status |
 | --- | --- | --- | --- |
 |  |  |  |  |
+
+### Lessons Learned
+Highlight what worked, what failed, tooling/process gaps, and training needs.
+
+### Evidence
+Attach graphs, logs, PRs, and relevant change requests proving remediation.
 
