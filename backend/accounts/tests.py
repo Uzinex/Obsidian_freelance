@@ -2,6 +2,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -304,3 +305,30 @@ class VerificationRequestViewSetTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("non_field_errors", response.data)
+
+    @override_settings(VERIFICATION_ADMIN_EMAIL="fdilov1@gmail.com")
+    def test_staff_user_can_approve_request_without_matching_email(self):
+        verification = VerificationRequest.objects.create(
+            profile=self.profile,
+            document_type=VerificationRequest.DOCUMENT_PASSPORT,
+            document_series="AB",
+            document_number="7654321",
+            document_image=self._make_document(),
+        )
+        admin_user = User.objects.create_user(
+            nickname="admin",
+            email="admin@example.com",
+            password="StrongPass123!",
+            first_name="Admin",
+            last_name="User",
+            is_staff=True,
+        )
+        self.client.force_authenticate(user=admin_user)
+        response = self.client.post(
+            reverse("verification-approve", args=[verification.id])
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        verification.refresh_from_db()
+        self.assertEqual(verification.status, VerificationRequest.STATUS_APPROVED)
+        self.assertEqual(verification.reviewed_by, admin_user)
+        self.assertTrue(verification.profile.is_verified)
