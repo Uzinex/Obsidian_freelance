@@ -19,6 +19,7 @@ import dj_database_url
 
 from . import feature_flags as communications_flags
 from . import jwt_settings as jwt_conf
+from .observability import configure_observability
 
 try:  # pragma: no cover - optional dependency handling
     import sentry_sdk
@@ -110,6 +111,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "obsidian_backend.middleware.SecurityHeadersMiddleware",
     "obsidian_backend.middleware.AdminAccessMiddleware",
+    "obsidian_backend.observability.PrometheusRequestMetricsMiddleware",
 ]
 
 ROOT_URLCONF = "obsidian_backend.urls"
@@ -373,3 +375,10 @@ if SENTRY_DSN and sentry_sdk and DjangoIntegration:
         profiles_sample_rate=float(os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "0.2")),
         send_default_pii=True,
     )
+
+
+configure_observability(
+    service_name="obsidian-backend",
+    environment=ENVIRONMENT,
+    enable=get_bool_env("ENABLE_OBSERVABILITY_SAMPLE", default=False),
+)
