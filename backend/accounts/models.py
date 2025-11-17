@@ -7,6 +7,7 @@ import secrets
 import uuid
 
 from django.conf import settings
+from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
@@ -44,6 +45,99 @@ class User(AbstractUser):
             return f"{base} {self.patronymic}".strip()
         return base
 
+
+class PendingRegistrationQuerySet(models.QuerySet):
+    def active(self):
+        return self.filter(expires_at__gt=timezone.now())
+
+
+class PendingRegistration(models.Model):
+    email = models.EmailField(unique=True)
+    normalized_email = models.EmailField(blank=True)
+    nickname = models.CharField(max_length=150)
+    first_name = models.CharField(max_length=150)
+    last_name = models.CharField(max_length=150)
+    patronymic = models.CharField(max_length=150, blank=True)
+    birth_year = models.PositiveIntegerField(null=True, blank=True)
+    password_hash = models.CharField(max_length=255)
+    locale = models.CharField(max_length=8, default="ru")
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    expires_at = models.DateTimeField()
+    otp_hash = models.CharField(max_length=128)
+    otp_salt = models.CharField(max_length=32)
+    otp_expires_at = models.DateTimeField()
+    attempts_left = models.PositiveSmallIntegerField(default=5)
+    resend_available_at = models.DateTimeField(null=True, blank=True)
+    send_count = models.PositiveSmallIntegerField(default=0)
+    last_sent_at = models.DateTimeField(null=True, blank=True)
+    locked_until = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = PendingRegistrationQuerySet.as_manager()
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["email"]),
+            models.Index(fields=["normalized_email"]),
+        ]
+
+    @property
+    def is_expired(self) -> bool:
+        return self.expires_at <= timezone.now()
+
+    @property
+    def is_locked(self) -> bool:
+        return bool(self.locked_until and self.locked_until > timezone.now())
+
+    def reset_lock(self) -> None:
+        self.locked_until = None
+        self.attempts_left = settings.ACCOUNTS_OTP_MAX_ATTEMPTS
+
+    def set_password(self, raw_password: str) -> None:
+        self.password_hash = make_password(raw_password)
+
+    def set_otp(self, payload: "accounts.otp.OTPPayload") -> None:
+        from .otp import OTPPayload  # local import to avoid circular
+
+        if not isinstance(payload, OTPPayload):  # pragma: no cover - defensive
+            raise TypeError("payload must be OTPPayload")
+        self.otp_hash = payload.hash
+        self.otp_salt = payload.salt
+        self.otp_expires_at = payload.expires_at
+        self.attempts_left = settings.ACCOUNTS_OTP_MAX_ATTEMPTS
+
+    def mark_code_sent(self, *, sent_at) -> None:
+        cooldown = getattr(
+            settings, "ACCOUNTS_REGISTRATION_RESEND_COOLDOWN_SECONDS", 60
+        )
+        self.last_sent_at = sent_at
+        self.resend_available_at = sent_at + timedelta(seconds=cooldown)
+        self.send_count = (self.send_count or 0) + 1
+
+    def verify_code(self, code: str) -> bool:
+        from .otp import verify_otp
+
+        if self.is_locked:
+            return False
+        now = timezone.now()
+        if now > self.otp_expires_at:
+            return False
+        if not verify_otp(code=code, salt=self.otp_salt, expected_hash=self.otp_hash):
+            self.attempts_left = max(0, (self.attempts_left or 0) - 1)
+            if self.attempts_left == 0:
+                lock_minutes = getattr(
+                    settings, "ACCOUNTS_REGISTRATION_LOCKOUT_MINUTES", 60
+                )
+                self.locked_until = now + timedelta(minutes=lock_minutes)
+            self.save(update_fields=["attempts_left", "locked_until", "updated_at"])
+            return False
+        self.attempts_left = settings.ACCOUNTS_OTP_MAX_ATTEMPTS
+        self.locked_until = None
+        self.save(update_fields=["attempts_left", "locked_until", "updated_at"])
+        return True
 
 class Profile(models.Model):
     ROLE_FREELANCER = "freelancer"

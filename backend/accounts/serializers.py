@@ -1,10 +1,12 @@
 import secrets
-from datetime import date
+from datetime import date, timedelta
 
+from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
+from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -16,6 +18,7 @@ from .models import (
     AuditEvent,
     AuthSession,
     OneTimeToken,
+    PendingRegistration,
     Profile,
     User,
     UsedRefreshToken,
@@ -24,8 +27,72 @@ from .models import (
     WalletTransaction,
     generate_token_hash,
 )
+from .otp import generate_otp
+from .recaptcha import RecaptchaVerificationError, verify_recaptcha
+from .emails import send_registration_code_email
 from .security import captcha_required
 from .twofactor import ensure_config, use_backup_code, verify_totp
+
+
+REGISTRATION_LIMIT_WINDOW = timedelta(hours=24)
+
+
+def _normalize_gmail(email: str) -> str:
+    local_part, _, domain = email.partition("@")
+    domain_lower = domain.lower()
+    if domain_lower not in {"gmail.com", "googlemail.com"}:
+        return ""
+    normalized_local = local_part.split("+", 1)[0].replace(".", "")
+    return f"{normalized_local}@gmail.com"
+
+
+def _registration_counter_key(prefix: str, identifier: str) -> str:
+    return f"register:{prefix}:{identifier}".lower()
+
+
+def _increment_registration_counter(prefix: str, identifier: str) -> bool:
+    if not identifier:
+        return True
+    limit = getattr(settings, "ACCOUNTS_REGISTRATION_DAILY_LIMIT", 5)
+    if limit <= 0:
+        return True
+    window_seconds = int(
+        getattr(settings, "ACCOUNTS_REGISTRATION_TTL_SECONDS", 60 * 60 * 24)
+    )
+    key = _registration_counter_key(prefix, identifier)
+    now = timezone.now()
+    payload = cache.get(key)
+    if not payload:
+        cache.set(
+            key,
+            {"count": 1, "expires": now.timestamp() + window_seconds},
+            timeout=window_seconds,
+        )
+        return True
+    expires = payload.get("expires", 0)
+    remaining = expires - now.timestamp()
+    if remaining <= 0:
+        cache.set(
+            key,
+            {"count": 1, "expires": now.timestamp() + window_seconds},
+            timeout=window_seconds,
+        )
+        return True
+    count = int(payload.get("count", 0))
+    if count >= limit:
+        return False
+    payload["count"] = count + 1
+    cache.set(key, payload, timeout=int(max(1, remaining)))
+    return True
+
+
+def _client_ip_from_request(request) -> str:
+    if not request:
+        return ""
+    forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR", "")
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -85,6 +152,262 @@ class RegistrationSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
         return user
+
+
+class RegistrationStartSerializer(serializers.Serializer):
+    first_name = serializers.CharField(max_length=150)
+    last_name = serializers.CharField(max_length=150)
+    patronymic = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    nickname = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+    birth_year = serializers.IntegerField(required=False)
+    password = serializers.CharField(write_only=True)
+    captcha = serializers.CharField(write_only=True)
+    locale = serializers.ChoiceField(choices=[("ru", "ru"), ("uz", "uz")], default="ru")
+    terms_accepted = serializers.BooleanField()
+
+    default_message = _(
+        "Если e-mail корректен, мы отправили код подтверждения на указанную почту."
+    )
+
+    def validate_birth_year(self, value):
+        if not value:
+            return value
+        current_year = date.today().year
+        if current_year - value < 16:
+            raise serializers.ValidationError(
+                _("Users must be at least 16 years old to register."),
+            )
+        return value
+
+    def validate_terms_accepted(self, value: bool) -> bool:
+        if not value:
+            raise serializers.ValidationError(
+                _("Consent to the Terms and Privacy Policy is required."),
+            )
+        return value
+
+    def validate_nickname(self, value: str) -> str:
+        if User.objects.filter(nickname__iexact=value).exists():
+            raise serializers.ValidationError(_("This nickname is already taken."))
+        return value
+
+    def validate_password(self, value: str) -> str:
+        try:
+            validate_password(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages)) from exc
+        return value
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        captcha_token = attrs.get("captcha")
+        try:
+            verify_recaptcha(token=captcha_token, remote_ip=_client_ip_from_request(request))
+        except RecaptchaVerificationError as exc:
+            raise serializers.ValidationError({"captcha": str(exc)}) from exc
+        email = attrs.get("email", "").strip().lower()
+        attrs["email"] = email
+        attrs["normalized_email"] = _normalize_gmail(email)
+        attrs["client_ip"] = _client_ip_from_request(request)
+        attrs["user_agent"] = request.META.get("HTTP_USER_AGENT", "") if request else ""
+        attrs["email_exists"] = User.objects.filter(email__iexact=email).exists()
+        return attrs
+
+    def save(self, **kwargs):
+        cooldown = getattr(
+            settings, "ACCOUNTS_REGISTRATION_RESEND_COOLDOWN_SECONDS", 60
+        )
+        if self.validated_data.get("email_exists"):
+            return {"email_sent": False, "message": self.default_message, "cooldown": cooldown}
+        email = self.validated_data["email"]
+        ip_address = self.validated_data.get("client_ip", "")
+        now = timezone.now()
+        ttl = getattr(settings, "ACCOUNTS_REGISTRATION_TTL_SECONDS", 60 * 60 * 24)
+        otp_payload = generate_otp()
+        locale = self.validated_data.get("locale", "ru")
+        with transaction.atomic():
+            defaults = {
+                "normalized_email": self.validated_data.get("normalized_email", ""),
+                "nickname": self.validated_data["nickname"],
+                "first_name": self.validated_data["first_name"],
+                "last_name": self.validated_data["last_name"],
+                "patronymic": self.validated_data.get("patronymic", ""),
+                "birth_year": self.validated_data.get("birth_year"),
+                "locale": locale,
+                "ip_address": ip_address or None,
+                "user_agent": self.validated_data.get("user_agent", ""),
+                "expires_at": now + timedelta(seconds=ttl),
+            }
+            pending, created = PendingRegistration.objects.select_for_update().get_or_create(
+                email=email,
+                defaults=defaults,
+            )
+            if not created and pending.is_expired:
+                for field, value in defaults.items():
+                    setattr(pending, field, value)
+                pending.send_count = 0
+            if pending.send_count >= getattr(settings, "ACCOUNTS_REGISTRATION_DAILY_LIMIT", 5):
+                raise serializers.ValidationError(
+                    {"detail": _("Лимит отправок кода исчерпан. Повторите попытку завтра.")}
+                )
+            if pending.resend_available_at and pending.resend_available_at > now:
+                remaining = int((pending.resend_available_at - now).total_seconds())
+                raise serializers.ValidationError(
+                    {
+                        "detail": _("Запрос уже отправлен. Подождите %(seconds)s секунд.")
+                        % {"seconds": remaining}
+                    }
+                )
+            if not _increment_registration_counter("email", email):
+                raise serializers.ValidationError(
+                    {"detail": _("Превышено количество кодов на этот e-mail. Попробуйте позже.")}
+                )
+            if not _increment_registration_counter("ip", ip_address):
+                raise serializers.ValidationError(
+                    {"detail": _("С этого адреса отправлено слишком много кодов. Попробуйте позже.")}
+                )
+            for field, value in defaults.items():
+                setattr(pending, field, value)
+            pending.set_password(self.validated_data["password"])
+            pending.set_otp(otp_payload)
+            pending.mark_code_sent(sent_at=now)
+            pending.expires_at = now + timedelta(seconds=ttl)
+            pending.save()
+        send_registration_code_email(
+            to_email=email,
+            code=otp_payload.code,
+            locale=locale,
+        )
+        return {
+            "email_sent": True,
+            "message": self.default_message,
+            "cooldown": cooldown,
+        }
+
+
+class RegistrationResendSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    captcha = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        try:
+            verify_recaptcha(token=attrs.get("captcha"), remote_ip=_client_ip_from_request(request))
+        except RecaptchaVerificationError as exc:
+            raise serializers.ValidationError({"captcha": str(exc)}) from exc
+        email = attrs.get("email", "").strip().lower()
+        attrs["email"] = email
+        attrs["client_ip"] = _client_ip_from_request(request)
+        return attrs
+
+    def save(self, **kwargs):
+        email = self.validated_data["email"]
+        now = timezone.now()
+        ip_address = self.validated_data.get("client_ip", "")
+        with transaction.atomic():
+            try:
+                pending = PendingRegistration.objects.select_for_update().get(email=email)
+            except PendingRegistration.DoesNotExist:
+                return {"email_sent": False}
+            if pending.is_expired:
+                pending.delete()
+                return {"email_sent": False}
+            if pending.resend_available_at and pending.resend_available_at > now:
+                remaining = int((pending.resend_available_at - now).total_seconds())
+                raise serializers.ValidationError(
+                    {
+                        "detail": _("Запрос уже отправлен. Подождите %(seconds)s секунд.")
+                        % {"seconds": remaining}
+                    }
+                )
+            if pending.send_count >= getattr(settings, "ACCOUNTS_REGISTRATION_DAILY_LIMIT", 5):
+                raise serializers.ValidationError(
+                    {"detail": _("Лимит отправок кода исчерпан. Повторите попытку завтра.")}
+                )
+            if not _increment_registration_counter("email", email):
+                raise serializers.ValidationError(
+                    {"detail": _("Превышено количество кодов на этот e-mail. Попробуйте позже.")}
+                )
+            if not _increment_registration_counter("ip", ip_address):
+                raise serializers.ValidationError(
+                    {"detail": _("С этого адреса отправлено слишком много кодов. Попробуйте позже.")}
+                )
+            otp_payload = generate_otp()
+            pending.set_otp(otp_payload)
+            pending.mark_code_sent(sent_at=now)
+            pending.save()
+        send_registration_code_email(
+            to_email=pending.email,
+            code=otp_payload.code,
+            locale=pending.locale,
+        )
+        cooldown = getattr(
+            settings, "ACCOUNTS_REGISTRATION_RESEND_COOLDOWN_SECONDS", 60
+        )
+        return {
+            "email_sent": True,
+            "cooldown": cooldown,
+        }
+
+
+class RegistrationVerifySerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    code = serializers.CharField(max_length=6)
+    auto_login = serializers.BooleanField(default=True)
+    device_id = serializers.CharField(max_length=128, required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        email = attrs.get("email", "").strip().lower()
+        code = attrs.get("code")
+        attrs["email"] = email
+        try:
+            pending = PendingRegistration.objects.select_for_update().get(email=email)
+        except PendingRegistration.DoesNotExist as exc:
+            raise serializers.ValidationError({"code": _("Неверный код подтверждения.")}) from exc
+        if pending.is_expired:
+            pending.delete()
+            raise serializers.ValidationError({"code": _("Код истёк. Запросите новый.")})
+        if pending.is_locked:
+            raise serializers.ValidationError({"code": _("Слишком много неверных попыток. Попробуйте позже.")})
+        if not pending.verify_code(code):
+            raise serializers.ValidationError({"code": _("Неверный код подтверждения.")})
+        attrs["pending"] = pending
+        attrs.setdefault("device_id", secrets.token_hex(16))
+        return attrs
+
+    def save(self, **kwargs):
+        pending: PendingRegistration = self.validated_data["pending"]
+        now = timezone.now()
+        with transaction.atomic():
+            if User.objects.filter(email__iexact=pending.email).exists():
+                pending.delete()
+                raise serializers.ValidationError(
+                    {"detail": _("Такой e-mail уже используется. Попробуйте войти.")}
+                )
+            if User.objects.filter(nickname__iexact=pending.nickname).exists():
+                pending.delete()
+                raise serializers.ValidationError(
+                    {"detail": _("Никнейм уже занят. Начните регистрацию заново.")}
+                )
+            user = User(
+                nickname=pending.nickname,
+                email=pending.email,
+                first_name=pending.first_name,
+                last_name=pending.last_name,
+                patronymic=pending.patronymic,
+                birth_year=pending.birth_year,
+                email_verified=True,
+                email_verified_at=now,
+            )
+            user.password = pending.password_hash
+            user.save()
+            pending.delete()
+        return {
+            "user": user,
+            "device_id": self.validated_data.get("device_id"),
+            "auto_login": self.validated_data.get("auto_login", True),
+        }
 
 
 class LoginSerializer(serializers.Serializer):

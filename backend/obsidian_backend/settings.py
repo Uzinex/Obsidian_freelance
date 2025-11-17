@@ -268,6 +268,25 @@ DISPUTE_ENABLED = communications_flags.is_feature_enabled("dispute.enabled")
 NOTIFY_EMAIL_ENABLED = communications_flags.is_feature_enabled("notify.email")
 NOTIFY_WEBPUSH_ENABLED = communications_flags.is_feature_enabled("notify.webpush")
 
+RECAPTCHA_SECRET_KEY = os.getenv("RECAPTCHA_SECRET_KEY", "").strip()
+RECAPTCHA_MIN_SCORE = float(os.getenv("RECAPTCHA_MIN_SCORE", "0.7"))
+
+ACCOUNTS_REGISTRATION_TTL_SECONDS = int(
+    os.getenv("ACCOUNTS_REGISTRATION_TTL_SECONDS", str(60 * 60 * 24))
+)
+ACCOUNTS_REGISTRATION_RESEND_COOLDOWN_SECONDS = int(
+    os.getenv("ACCOUNTS_REGISTRATION_RESEND_COOLDOWN_SECONDS", "60")
+)
+ACCOUNTS_REGISTRATION_DAILY_LIMIT = int(
+    os.getenv("ACCOUNTS_REGISTRATION_DAILY_LIMIT", "5")
+)
+ACCOUNTS_REGISTRATION_LOCKOUT_MINUTES = int(
+    os.getenv("ACCOUNTS_REGISTRATION_LOCKOUT_MINUTES", "60")
+)
+ACCOUNTS_OTP_TTL_SECONDS = int(os.getenv("ACCOUNTS_OTP_TTL_SECONDS", "600"))
+ACCOUNTS_OTP_MAX_ATTEMPTS = int(os.getenv("ACCOUNTS_OTP_MAX_ATTEMPTS", "5"))
+ACCOUNTS_OTP_PEPPER = os.getenv("ACCOUNTS_OTP_PEPPER", SECRET_KEY)
+
 AI_GATEWAY_URL = os.getenv("AI_GATEWAY_URL", "http://localhost:8081").rstrip("/")
 AI_GATEWAY_TIMEOUT = float(os.getenv("AI_GATEWAY_TIMEOUT", "1.5"))
 AI_GATEWAY_API_KEY = os.getenv("AI_GATEWAY_API_KEY", "")
