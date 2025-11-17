@@ -3,9 +3,26 @@ kind: Ingress
 metadata:
   name: app-ingress
   annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/proxy-body-size: "16m"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/enable-modsecurity: "true"
+    nginx.ingress.kubernetes.io/modsecurity-snippet: |
+      SecRuleEngine On
+      SecRequestBodyAccess On
+      Include /etc/nginx/owasp-modsecurity-crs/nginx-modsecurity.conf
+      SecAction "id:900000,phase:1,nolog,pass,t:none,setvar:tx.paranoia_level=2"
+      SecRule REQUEST_URI "@rx ^/api/(accounts/(login|reset)|payments|webhooks)" "id:773001,phase:1,pass,setvar:tx.sensitive_path=1"
+      SecRule TX:sensitive_path "@eq 1" "id:773002,phase:1,pass,setvar:tx.rate_limiting=1"
+      SecRule TX:rate_limiting "@eq 1" "id:773004,phase:1,pass,setvar:ip.sensitive_counter=+1,expirevar:ip.sensitive_counter=60"
+      SecRule IP:sensitive_counter "@gt 30" "id:773005,phase:1,deny,log,msg:'Sensitive route rate limit exceeded'"
+      SecRule REQUEST_HEADERS:CF-Bot-Score "@lt 30" "id:773003,phase:1,deny,log,msg:'Blocked low bot score'"
+    nginx.ingress.kubernetes.io/ssl-protocols: "TLSv1.2 TLSv1.3"
+    nginx.ingress.kubernetes.io/ssl-ciphers: >-
+      TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256:
+      ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:
+      ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256
     nginx.ingress.kubernetes.io/configuration-snippet: |
       proxy_set_header X-Request-ID $request_id;
       proxy_read_timeout 75s;
