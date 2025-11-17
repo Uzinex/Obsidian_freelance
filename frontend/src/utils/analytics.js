@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 export function trackEvent(eventName, payload = {}) {
   if (typeof window === 'undefined') {
@@ -22,8 +22,12 @@ export function trackError(eventName, error, payload = {}) {
 }
 
 export function useScrollTelemetry(targetIds = [], metadata = {}) {
+  const normalizedIds = useMemo(() => (Array.isArray(targetIds) ? [...targetIds] : []), [targetIds]);
+  const metadataSignature = useMemo(() => JSON.stringify(metadata || {}), [metadata]);
+  const metadataPayload = useMemo(() => JSON.parse(metadataSignature || '{}'), [metadataSignature]);
+
   useEffect(() => {
-    if (typeof window === 'undefined' || !Array.isArray(targetIds) || targetIds.length === 0) {
+    if (typeof window === 'undefined' || normalizedIds.length === 0) {
       return () => {};
     }
 
@@ -35,7 +39,7 @@ export function useScrollTelemetry(targetIds = [], metadata = {}) {
             seen.add(entry.target.dataset.analyticsId);
             trackEvent('section_viewport_enter', {
               section: entry.target.dataset.analyticsId,
-              ...metadata,
+              ...metadataPayload,
             });
           }
         });
@@ -43,7 +47,7 @@ export function useScrollTelemetry(targetIds = [], metadata = {}) {
       { threshold: 0.4 },
     );
 
-    targetIds.forEach((id) => {
+    normalizedIds.forEach((id) => {
       const el = document.querySelector(`[data-analytics-id="${id}"]`);
       if (el) {
         observer.observe(el);
@@ -51,5 +55,5 @@ export function useScrollTelemetry(targetIds = [], metadata = {}) {
     });
 
     return () => observer.disconnect();
-  }, [targetIds.join('::'), JSON.stringify(metadata)]);
+  }, [normalizedIds, metadataPayload]);
 }

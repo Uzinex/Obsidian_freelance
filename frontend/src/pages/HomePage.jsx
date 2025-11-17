@@ -7,38 +7,39 @@ import SeoHelmet from '../components/SeoHelmet.jsx';
 import { useLocale } from '../context/LocaleContext.jsx';
 import { publicContent } from '../mocks/publicContent.js';
 import { trackError, trackEvent, useScrollTelemetry } from '../utils/analytics.js';
+import Icon from '../components/Icon.jsx';
 
 const stats = [
   {
     value: '1 200+',
     label: 'проектов запущено',
-    icon: 'https://img.icons8.com/ios-filled/32/f5f5f5/rocket.png',
+    icon: 'rocket',
   },
   {
     value: '48 ч',
     label: 'среднее время подбора команды',
-    icon: 'https://img.icons8.com/ios-filled/32/f5f5f5/alarm-clock.png',
+    icon: 'timer',
   },
   {
     value: '97%',
     label: 'успешных завершений',
-    icon: 'https://img.icons8.com/ios-filled/32/f5f5f5/approval.png',
+    icon: 'shield',
   },
 ];
 
 const categoryVisuals = {
-  marketing: 'https://img.icons8.com/color/64/marketing.png',
-  design: 'https://img.icons8.com/color/64/design--v1.png',
-  'искусственный интеллект': 'https://img.icons8.com/color/64/artificial-intelligence.png',
-  'artificial-intelligence': 'https://img.icons8.com/color/64/artificial-intelligence.png',
-  programming: 'https://img.icons8.com/color/64/source-code.png',
-  'программирование': 'https://img.icons8.com/color/64/source-code.png',
-  'услуги администрирования': 'https://img.icons8.com/color/64/services.png',
-  'uslugi-administrirovaniya': 'https://img.icons8.com/color/64/services.png',
-  'услуги видео и аудио': 'https://img.icons8.com/color/64/video-clip.png',
-  'uslugi-video-i-audio': 'https://img.icons8.com/color/64/video-clip.png',
-  'услуги редактирования': 'https://img.icons8.com/color/64/edit-file.png',
-  'uslugi-redaktirovaniya': 'https://img.icons8.com/color/64/edit-file.png',
+  marketing: 'chart',
+  design: 'idea',
+  'искусственный интеллект': 'spark',
+  'artificial-intelligence': 'spark',
+  programming: 'orders',
+  'программирование': 'orders',
+  'услуги администрирования': 'shield',
+  'uslugi-administrirovaniya': 'shield',
+  'услуги видео и аудио': 'lightning',
+  'uslugi-video-i-audio': 'lightning',
+  'услуги редактирования': 'todo',
+  'uslugi-redaktirovaniya': 'todo',
 };
 
 const getCategoryVisual = (category) => {
@@ -59,7 +60,7 @@ const getCategoryVisual = (category) => {
     }
   }
 
-  return 'https://img.icons8.com/color/64/conference-call.png';
+  return 'bookmark';
 };
 
 const steps = [
@@ -97,6 +98,43 @@ export default function HomePage() {
   const seo = publicContent[locale].seo.home;
   const localizedOrdersPath = buildPath('/orders');
   const localizedFreelancersPath = buildPath('/freelancers');
+  const reviews = publicContent[locale].reviews;
+  const organization = publicContent[locale].organization;
+
+  const organizationLd = useMemo(
+    () => ({
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      name: organization.name,
+      url: organization.url,
+      logo: organization.logo,
+      sameAs: organization.sameAs,
+      aggregateRating: organization.aggregateRating,
+      review: reviews.map((review) => ({
+        '@type': 'Review',
+        author: { '@type': 'Person', name: review.author },
+        reviewBody: review.review,
+        reviewRating: { '@type': 'Rating', ratingValue: review.rating },
+      })),
+    }),
+    [organization, reviews],
+  );
+
+  const slaBadges = useMemo(
+    () =>
+      locale === 'uz'
+        ? [
+            { label: 'SLA 2 soat', description: 'Moderatorlar 24/7 rejimida javob beradi.' },
+            { label: 'Escrow changelog', description: 'Har yangilanish ochiq changelogda.' },
+            { label: 'Verifikatsiya', description: 'Har profil uchun KYC va qo‘lda tekshiruv.' },
+          ]
+        : [
+            { label: 'SLA 2 часа', description: 'Ответ поддержки и куратора в течение двух часов.' },
+            { label: 'Escrow changelog', description: 'Все изменения логики escrow публичны.' },
+            { label: 'Верификация', description: 'Удостоверения и компании проходят ручную проверку.' },
+          ],
+    [locale],
+  );
 
   useScrollTelemetry(['home-hero', 'home-categories', 'home-steps', 'home-orders'], {
     page: 'landing',
@@ -134,17 +172,11 @@ export default function HomePage() {
 
   return (
     <div className="homepage" data-analytics-id="home">
-      <SeoHelmet title={seo.title} description={seo.description} path="/" ogImage={seo.ogImage} jsonLd={{ '@context': 'https://schema.org', '@type': 'Organization', name: publicContent[locale].organization.name, aggregateRating: publicContent[locale].organization.aggregateRating }} />
+      <SeoHelmet title={seo.title} description={seo.description} path="/" ogImage={seo.ogImage} jsonLd={organizationLd} />
       <section className="hero home-hero" data-analytics-id="home-hero">
         <div className="home-hero-content">
           <span className="hero-pill">
-            <img
-              src="https://img.icons8.com/ios-filled/20/f5f5f5/dizzy-person.png"
-              alt=""
-              aria-hidden="true"
-              loading="lazy"
-              decoding="async"
-            />
+            <Icon name="spark" size={18} decorative />
             Платформа для сложных цифровых задач
           </span>
           <h1>Объединяем лучшие команды для амбициозных проектов</h1>
@@ -189,12 +221,45 @@ export default function HomePage() {
         <div className="hero-stats">
           {stats.map((item) => (
             <div key={item.label} className="hero-stat">
-              <img src={item.icon} alt="" aria-hidden="true" loading="lazy" decoding="async" />
+              <Icon name={item.icon} size={28} decorative />
               <div>
                 <span>{item.value}</span>
                 <p>{item.label}</p>
               </div>
             </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="card trust-card" data-analytics-id="home-trust">
+        <div className="trust-badges">
+          {slaBadges.map((badge) => (
+            <div key={badge.label} className="trust-badge">
+              <Icon name="shield" size={20} decorative />
+              <div>
+                <strong>{badge.label}</strong>
+                <p>{badge.description}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="testimonial-grid">
+          {reviews.map((review) => (
+            <article key={review.author} className="testimonial-card">
+              <header>
+                <Icon name="badge" size={24} decorative />
+                <div>
+                  <strong>{review.author}</strong>
+                  <span>{review.role}</span>
+                </div>
+              </header>
+              <p>“{review.review}”</p>
+              <div className="rating" aria-label={`Оценка ${review.rating} из 5`}>
+                {Array.from({ length: review.rating }).map((_, index) => (
+                  <Icon key={index} name="check" size={16} decorative />
+                ))}
+              </div>
+            </article>
           ))}
         </div>
       </section>
@@ -212,8 +277,8 @@ export default function HomePage() {
         <div className="category-grid">
           {categories.map((category) => (
             <Link key={category.id} to={buildPath(`/orders?category=${category.slug}`)} className="category-card">
-              <div className="category-card-visual">
-                <img src={getCategoryVisual(category)} alt="" aria-hidden="true" loading="lazy" decoding="async" />
+              <div className="category-card-visual" aria-hidden="true">
+                <Icon name={getCategoryVisual(category)} size={32} decorative />
               </div>
               <div className="category-card-body">
                 <h3>{category.name}</h3>
@@ -254,21 +319,17 @@ export default function HomePage() {
               <article key={order.id} className="order-card">
                 <header>
                   <div className="order-card-title">
-                    <img
-                      src="https://img.icons8.com/ios-filled/28/1f1f1f/lightning-bolt.png"
-                      alt=""
-                      aria-hidden="true"
-                    />
+                    <Icon name="lightning" size={22} decorative />
                     <h3>{order.title}</h3>
                   </div>
                   <span className="status">{orderTypeLabels[order.order_type] || order.order_type}</span>
                 </header>
                 <p>{description}</p>
                 <div className="order-meta">
-                  <span>Дедлайн: {formatDate(order.deadline)}</span>
+                  <span>Дедлайн: {formatDate(order.deadline, { locale })}</span>
                   <span>
                     Бюджет: {order.payment_type === 'hourly' ? 'Почасовая оплата' : 'Фиксированная'} —{' '}
-                    {formatCurrency(order.budget, order.currency)}
+                    {formatCurrency(order.budget, { currency: order.currency, locale })}
                   </span>
                 </div>
                 <div className="order-tags">
@@ -278,7 +339,7 @@ export default function HomePage() {
                     </span>
                   ))}
                 </div>
-                <Link to={`/orders/${order.id}`} className="button primary">
+                <Link to={buildPath(`/orders/${order.id}`)} className="button primary">
                   Подробнее
                 </Link>
               </article>

@@ -32,6 +32,7 @@ import ContactsPage from './pages/public/ContactsPage.jsx';
 import TermsPage from './pages/public/TermsPage.jsx';
 import PrivacyPage from './pages/public/PrivacyPage.jsx';
 import CookiesPage from './pages/public/CookiesPage.jsx';
+import PricingPage from './pages/public/PricingPage.jsx';
 
 function PublicLayout() {
   const { locale } = useParams();
@@ -89,6 +90,7 @@ function AppRoutes() {
         <Route path="terms" element={<TermsPage />} />
         <Route path="privacy" element={<PrivacyPage />} />
         <Route path="cookies" element={<CookiesPage />} />
+        <Route path="pricing" element={<PricingPage />} />
       </Route>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />

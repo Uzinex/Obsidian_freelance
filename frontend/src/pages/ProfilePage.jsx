@@ -74,7 +74,7 @@ function getProfileFormDefaults(profile) {
 
 export default function ProfilePage() {
   const { user, login, token, logout, isVerificationAdmin } = useAuth();
-  const { buildPath } = useLocale();
+  const { buildPath, locale } = useLocale();
   const [skills, setSkills] = useState([]);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -316,7 +316,11 @@ export default function ProfilePage() {
       <section className="card profile-summary">
         <div className="profile-summary-header">
           <div className="profile-avatar">
-            {avatarPreview ? <img src={avatarPreview} alt={displayName} /> : <span>{displayName ? displayName.charAt(0) : '?'}</span>}
+            {avatarPreview ? (
+              <img src={avatarPreview} alt={displayName} loading="lazy" decoding="async" />
+            ) : (
+              <span>{displayName ? displayName.charAt(0) : '?'}</span>
+            )}
           </div>
           <div>
             <h1>{displayName}</h1>
@@ -413,7 +417,7 @@ export default function ProfilePage() {
             <p className="subtle">Управляйте балансом в узбекских сумах (UZS)</p>
           </div>
           <div className="wallet-balance">
-            {wallet ? formatCurrency(wallet.balance, wallet.currency) : '—'}
+            {wallet ? formatCurrency(wallet.balance, { currency: wallet.currency, locale }) : '—'}
           </div>
         </div>
         {walletMessage && <div className="alert success">{walletMessage}</div>}
@@ -460,7 +464,10 @@ export default function ProfilePage() {
             <ul>
               {wallet.transactions.map((transaction) => {
                 const amount = Number(transaction.amount);
-                const formattedAmount = formatCurrency(Math.abs(amount), wallet.currency);
+                const formattedAmount = formatCurrency(Math.abs(amount), {
+                  currency: wallet.currency,
+                  locale,
+                });
                 const sign = amount >= 0 ? '+' : '−';
                 return (
                   <li key={transaction.id}>
@@ -473,7 +480,9 @@ export default function ProfilePage() {
                       <span className={amount >= 0 ? 'positive' : 'negative'}>
                         {sign} {formattedAmount}
                       </span>
-                      <small>Баланс: {formatCurrency(transaction.balance_after, wallet.currency)}</small>
+                      <small>
+                        Баланс: {formatCurrency(transaction.balance_after, { currency: wallet.currency, locale })}
+                      </small>
                     </div>
                   </li>
                 );
@@ -509,7 +518,10 @@ export default function ProfilePage() {
                     <span className="contract-status">{contract.status_display}</span>
                   </header>
                   <p>
-                    <strong>Сумма:</strong> {formatCurrency(contract.budget_snapshot, contract.currency)}
+                    <strong>Сумма:</strong> {formatCurrency(contract.budget_snapshot, {
+                      currency: contract.currency,
+                      locale,
+                    })}
                   </p>
                   <p>
                     <strong>Подписание:</strong> заказчик —{' '}

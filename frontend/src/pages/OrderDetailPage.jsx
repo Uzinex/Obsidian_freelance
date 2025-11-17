@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { applyToOrder, fetchOrder } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useLocale } from '../context/LocaleContext.jsx';
 import { formatCurrency, formatDateTime } from '../utils/formatting.js';
 
 export default function OrderDetailPage() {
@@ -10,6 +11,7 @@ export default function OrderDetailPage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const { user } = useAuth();
+  const { locale } = useLocale();
 
   useEffect(() => {
     async function loadOrder() {
@@ -56,9 +58,9 @@ export default function OrderDetailPage() {
       <p>{order.description}</p>
       <div style={{ margin: '1rem 0' }}>
         <strong>Оплата:</strong> {order.payment_type === 'hourly' ? 'Почасовая' : 'Фиксированная'} —{' '}
-        {formatCurrency(order.budget, order.currency)}
+        {formatCurrency(order.budget, { currency: order.currency, locale })}
       </div>
-      <div className="status">Дедлайн: {formatDateTime(order.deadline)}</div>
+      <div className="status">Дедлайн: {formatDateTime(order.deadline, { locale })}</div>
       <div style={{ margin: '1rem 0' }}>
         <strong>Навыки:</strong>
         <div>

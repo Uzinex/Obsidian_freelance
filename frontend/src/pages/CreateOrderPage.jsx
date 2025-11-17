@@ -5,6 +5,7 @@ import { createOrder, fetchSkills } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useLocale } from '../context/LocaleContext.jsx';
 import SkillSelector from '../components/SkillSelector.jsx';
+import Icon from '../components/Icon.jsx';
 
 const paymentTypes = [
   { value: 'hourly', label: 'Почасовая оплата' },
@@ -129,7 +130,7 @@ export default function CreateOrderPage() {
       <header className="form-header">
         <div>
           <span className="form-pill">
-            <img src="https://img.icons8.com/ios-filled/24/1f1f1f/flash-on.png" alt="" aria-hidden="true" />
+            <Icon name="flash" size={18} decorative />
             Новый заказ
           </span>
           <h1>Опубликовать заказ</h1>
