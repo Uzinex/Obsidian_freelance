@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone as dt_timezone
 
 from django.http import FileResponse, Http404
 from django.utils import timezone
@@ -84,7 +84,7 @@ class ContractChatMessagesView(ContractThreadMixin, generics.ListCreateAPIView):
             try:
                 boundary = datetime.fromisoformat(since)
                 if boundary.tzinfo is None:
-                    boundary = boundary.replace(tzinfo=timezone.utc)
+                    boundary = boundary.replace(tzinfo=dt_timezone.utc)
                 queryset = queryset.filter(sent_at__gte=boundary)
             except ValueError:
                 pass
@@ -129,7 +129,7 @@ class ChatEventPollView(ContractThreadMixin, APIView):
             try:
                 boundary = datetime.fromisoformat(since_value)
                 if boundary.tzinfo is None:
-                    boundary = boundary.replace(tzinfo=timezone.utc)
+                    boundary = boundary.replace(tzinfo=dt_timezone.utc)
             except ValueError:
                 boundary = None
         qs = (
