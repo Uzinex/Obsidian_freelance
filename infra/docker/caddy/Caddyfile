@@ -1,0 +1,12 @@
+:4173 {
+  root * /srv
+  file_server
+  encode gzip zstd
+  @health path /healthz
+  respond @health 200 {
+    body "ok"
+  }
+  header {
+    Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+  }
+}
