@@ -147,7 +147,7 @@ CHANNEL_LAYERS = {
 
 REQUIRED_DATABASE_URL = (
     "postgresql://postgres:"
-    "YdSCArqIBpflQWBNVdCfCrQlYUwOJiQs@shortline.proxy.rlwy.net:13067/railway"
+    "npcRdqPDlxlPJnwfvRBltzMjecjAosWM@shortline.proxy.rlwy.net:52464/railway"
 )
 
 configured_database_url = os.getenv("DATABASE_URL")
