@@ -1,6 +1,7 @@
 from django.conf import settings
 from decimal import Decimal
 
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
@@ -47,6 +48,18 @@ class ProfileViewSet(viewsets.ModelViewSet):
         if skill:
             queryset = queryset.filter(skills__id=skill)
         return queryset.distinct()
+
+    @action(detail=False, methods=["get"], url_path=r"public/(?P<slug>[^/]+)")
+    def public_profile(self, request, slug: str | None = None):
+        profile = get_object_or_404(
+            self.get_queryset().filter(
+                visibility=Profile.VISIBILITY_PUBLIC,
+                role=Profile.ROLE_FREELANCER,
+            ),
+            slug__iexact=slug,
+        )
+        serializer = self.get_serializer(profile)
+        return Response(serializer.data)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
