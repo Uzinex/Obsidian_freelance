@@ -10,6 +10,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from marketplace.models import Skill
+from obsidian_backend.ai import tldr as tldr_cache
 
 from .models import (
     AuditEvent,
@@ -242,6 +243,7 @@ class ProfileSerializer(serializers.ModelSerializer):
     wallet = serializers.SerializerMethodField()
     contracts = serializers.SerializerMethodField()
     staff_roles = serializers.SerializerMethodField()
+    tldr = serializers.SerializerMethodField()
     NULLABLE_STRING_FIELDS = {
         "freelancer_type",
         "company_name",
@@ -281,6 +283,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             "wallet",
             "contracts",
             "staff_roles",
+            "tldr",
             "created_at",
             "updated_at",
         )
@@ -292,6 +295,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             "wallet",
             "contracts",
             "staff_roles",
+            "tldr",
         )
 
     def __init__(self, *args, **kwargs):
@@ -358,6 +362,23 @@ class ProfileSerializer(serializers.ModelSerializer):
         else:
             data["skill_details"] = []
         return data
+
+    def _resolve_locale(self) -> str:
+        request = self.context.get("request")
+        if request is not None:
+            header = request.headers.get("Accept-Language")
+            if header:
+                return header.split(",")[0].strip() or "ru"
+        return self.context.get("locale", "ru")
+
+    def get_tldr(self, instance: Profile) -> str | None:
+        locale = self._resolve_locale()
+        return tldr_cache.get_tldr(
+            entity="profile",
+            pk=instance.pk,
+            locale=locale,
+            fetcher=instance.get_tldr,
+        )
 
     def get_wallet(self, instance: Profile):
         wallet: Wallet | None = getattr(instance, "wallet", None)

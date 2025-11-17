@@ -117,6 +117,8 @@ class Order(models.Model):
 
     title = models.CharField(max_length=255)
     description = models.TextField()
+    tldr_ru = models.TextField(blank=True)
+    tldr_uz = models.TextField(blank=True)
     deadline = models.DateTimeField()
     payment_type = models.CharField(max_length=16, choices=PAYMENT_CHOICES)
     budget = models.DecimalField(max_digits=12, decimal_places=2)
@@ -145,6 +147,19 @@ class Order(models.Model):
     @property
     def is_active(self) -> bool:
         return self.status in {self.STATUS_PUBLISHED, self.STATUS_IN_PROGRESS}
+
+    def get_tldr(self, locale: str = "ru") -> str:
+        normalized = (locale or "ru").lower()
+        if normalized.startswith("uz"):
+            return self.tldr_uz or self.tldr_ru
+        return self.tldr_ru or self.tldr_uz
+
+    def set_tldr(self, locale: str, value: str) -> None:
+        normalized = (locale or "ru").lower()
+        if normalized.startswith("uz"):
+            self.tldr_uz = value
+        else:
+            self.tldr_ru = value
 
 
 class OrderApplication(models.Model):

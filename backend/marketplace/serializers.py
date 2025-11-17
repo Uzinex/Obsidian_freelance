@@ -2,6 +2,8 @@ from rest_framework import serializers
 
 from accounts.models import Profile
 from accounts.serializers import ProfileSerializer
+from obsidian_backend.ai import tldr as tldr_cache
+
 from .models import Category, Contract, Order, OrderApplication, Skill
 
 
@@ -37,6 +39,7 @@ class OrderSerializer(serializers.ModelSerializer):
     required_skill_details = SkillSerializer(
         many=True, source="required_skills", read_only=True
     )
+    tldr = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -56,6 +59,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "client_id",
             "created_at",
             "updated_at",
+            "tldr",
         )
         read_only_fields = (
             "status",
@@ -63,6 +67,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "updated_at",
             "client",
             "currency",
+            "tldr",
         )
 
     def __init__(self, *args, **kwargs):
@@ -84,6 +89,23 @@ class OrderSerializer(serializers.ModelSerializer):
         if skills is not None:
             order.required_skills.set(skills)
         return order
+
+    def _resolve_locale(self) -> str:
+        request = self.context.get("request")
+        if request is not None:
+            header = request.headers.get("Accept-Language")
+            if header:
+                return header.split(",")[0].strip() or "ru"
+        return self.context.get("locale", "ru")
+
+    def get_tldr(self, obj: Order) -> str | None:
+        locale = self._resolve_locale()
+        return tldr_cache.get_tldr(
+            entity="order",
+            pk=obj.pk,
+            locale=locale,
+            fetcher=obj.get_tldr,
+        )
 
 
 class OrderApplicationSerializer(serializers.ModelSerializer):
