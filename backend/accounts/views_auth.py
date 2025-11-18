@@ -7,6 +7,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from rest_framework import permissions, status
 from rest_framework.exceptions import AuthenticationFailed, NotAuthenticated, ValidationError
 from rest_framework.response import Response
@@ -21,6 +22,7 @@ from .models import (
     AuditEvent,
     AuthSession,
     OneTimeToken,
+    PendingRegistration,
     User,
     generate_token_hash,
 )
@@ -34,6 +36,9 @@ from .serializers import (
     LoginSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
+    RegistrationResendSerializer,
+    RegistrationStartSerializer,
+    RegistrationVerifySerializer,
     TwoFactorSetupSerializer,
     UserSerializer,
 )
@@ -70,6 +75,204 @@ class AuthCookieMixin:
     def clear_refresh_cookie(self, response: Response) -> None:
         cookie = jwt_conf.JWT_REFRESH_COOKIE
         response.delete_cookie(cookie.name, path=cookie.path, samesite=cookie.samesite)
+
+
+class RegistrationStartView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "register"
+
+    def post(self, request, *args, **kwargs):
+        serializer = RegistrationStartSerializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        result = serializer.save()
+        metadata = {
+            "email": serializer.validated_data.get("email"),
+            "email_sent": result.get("email_sent"),
+        }
+        audit_logger.log_event(
+            event_type=AuditEvent.TYPE_REGISTRATION_STARTED,
+            request=request,
+            metadata=metadata,
+        )
+        if result.get("email_sent"):
+            audit_logger.log_event(
+                event_type=AuditEvent.TYPE_REGISTRATION_CODE_SENT,
+                request=request,
+                metadata=metadata,
+            )
+        response_payload = {
+            "detail": result.get("message", serializer.default_message),
+            "email_sent": result.get("email_sent", False),
+            "cooldown": result.get("cooldown"),
+        }
+        return Response(response_payload, status=status.HTTP_200_OK)
+
+
+class RegistrationResendView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "register"
+
+    def post(self, request, *args, **kwargs):
+        serializer = RegistrationResendSerializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        result = serializer.save()
+        if result.get("email_sent"):
+            audit_logger.log_event(
+                event_type=AuditEvent.TYPE_REGISTRATION_CODE_SENT,
+                request=request,
+                metadata={"email": serializer.validated_data.get("email")},
+            )
+        return Response(
+            {
+                "detail": RegistrationStartSerializer.default_message,
+                "email_sent": result.get("email_sent", False),
+                "cooldown": result.get("cooldown"),
+            }
+        )
+
+
+class RegistrationVerifyView(AuthCookieMixin, APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "register"
+
+    def post(self, request, *args, **kwargs):
+        serializer = RegistrationVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result = serializer.save()
+        user = result["user"]
+        audit_logger.log_event(
+            event_type=AuditEvent.TYPE_REGISTRATION_VERIFIED,
+            user=user,
+            request=request,
+            metadata={"email": user.email},
+        )
+        auto_login = result.get("auto_login", True)
+        response_payload = {
+            "user": UserSerializer(user).data,
+            "detail": _("Регистрация успешно завершена."),
+            "auto_login": auto_login,
+        }
+        if not auto_login:
+            return Response(response_payload, status=status.HTTP_201_CREATED)
+        device_id = result.get("device_id") or secrets.token_hex(16)
+        now = timezone.now()
+        absolute_expiration = now + timedelta(
+            seconds=jwt_conf.JWT_REFRESH_ABSOLUTE_LIFETIME_SECONDS
+        )
+        user_agent = request.META.get("HTTP_USER_AGENT", "")
+        ip_address = _client_ip(request)
+        with transaction.atomic():
+            session = AuthSession.objects.create(
+                user=user,
+                device_id=device_id,
+                user_agent=user_agent,
+                ip_address=ip_address,
+                refresh_token_hash=generate_token_hash(secrets.token_urlsafe(16)),
+                current_refresh_jti=secrets.token_hex(8),
+                refresh_token_expires_at=absolute_expiration,
+                absolute_expiration_at=absolute_expiration,
+                last_refreshed_at=now,
+                extra={"two_factor_verified": False},
+            )
+            refresh_token, refresh_jti = issue_refresh_token(
+                user=user, session=session
+            )
+            session.update_refresh(
+                token=refresh_token,
+                jti=refresh_jti,
+                ttl_seconds=jwt_conf.JWT_REFRESH_TTL_SECONDS,
+            )
+        access_token, _ = issue_access_token(
+            user=user,
+            session=session,
+            two_factor_verified=False,
+        )
+        response_payload.update(
+            {
+                "access": access_token,
+                "access_expires_in": jwt_conf.JWT_ACCESS_TTL_SECONDS,
+                "session": AuthSessionSerializer(session).data,
+            }
+        )
+        response = Response(response_payload, status=status.HTTP_201_CREATED)
+        self.set_refresh_cookie(response, refresh_token, session.refresh_token_expires_at)
+        audit_logger.log_event(
+            event_type=AuditEvent.TYPE_LOGIN,
+            user=user,
+            request=request,
+            session=session,
+            device_id=device_id,
+            metadata={"source": "registration"},
+        )
+        return response
+
+
+class NicknameAvailabilityView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "register"
+
+    def get(self, request, *args, **kwargs):
+        nickname = (request.query_params.get("nickname") or "").strip()
+        if not nickname:
+            return Response(
+                {
+                    "available": False,
+                    "detail": _("Укажите никнейм для проверки."),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(nickname) < 3:
+            return Response(
+                {
+                    "available": False,
+                    "detail": _("Ник должен содержать минимум 3 символа."),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(nickname) > 150:
+            return Response(
+                {
+                    "available": False,
+                    "detail": _("Ник слишком длинный."),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        invalid_chars = set()
+        for char in nickname:
+            if char.isalnum() or char in {"_", "-", "."}:
+                continue
+            invalid_chars.add(char)
+        if invalid_chars:
+            return Response(
+                {
+                    "available": False,
+                    "detail": _("Разрешены только буквы, цифры, точки, дефис и подчёркивание."),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        exists = User.objects.filter(nickname__iexact=nickname).exists()
+        pending_exists = PendingRegistration.objects.filter(
+            nickname__iexact=nickname, expires_at__gt=timezone.now()
+        ).exists()
+        if exists or pending_exists:
+            return Response(
+                {
+                    "available": False,
+                    "detail": _("Ник уже занят. Попробуйте другой вариант."),
+                },
+                status=status.HTTP_200_OK,
+            )
+        return Response(
+            {
+                "available": True,
+                "detail": _("Ник свободен."),
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class LoginView(AuthCookieMixin, APIView):

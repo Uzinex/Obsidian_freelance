@@ -15,8 +15,26 @@ export function applyAuthToken(token) {
   }
 }
 
-export async function registerUser(payload) {
+export async function startRegistration(payload) {
   const response = await apiClient.post('accounts/register/', payload);
+  return response.data;
+}
+
+export async function resendRegistrationCode(payload) {
+  const response = await apiClient.post('accounts/register/resend/', payload);
+  return response.data;
+}
+
+export async function verifyRegistration(payload) {
+  const response = await apiClient.post('accounts/register/verify/', payload);
+  return response.data;
+}
+
+export async function checkNicknameAvailability(nickname, { signal } = {}) {
+  const response = await apiClient.get('accounts/register/nickname/', {
+    params: { nickname },
+    signal,
+  });
   return response.data;
 }
 

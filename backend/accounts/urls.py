@@ -3,7 +3,6 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     ProfileViewSet,
-    RegisterView,
     VerificationRequestViewSet,
     WalletViewSet,
 )
@@ -12,11 +11,15 @@ from .views_auth import (
     EmailChangeRequestView,
     EmailVerifyConfirmView,
     EmailVerifyRequestView,
+    NicknameAvailabilityView,
     LoginView,
     LogoutAllView,
     LogoutView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
+    RegistrationResendView,
+    RegistrationStartView,
+    RegistrationVerifyView,
     RefreshView,
     SessionListView,
     TwoFactorBackupCodesView,
@@ -31,7 +34,10 @@ router.register("verifications", VerificationRequestViewSet, basename="verificat
 router.register("wallets", WalletViewSet, basename="wallet")
 
 urlpatterns = [
-    path("register/", RegisterView.as_view(), name="register"),
+    path("register/", RegistrationStartView.as_view(), name="register"),
+    path("register/verify/", RegistrationVerifyView.as_view(), name="register-verify"),
+    path("register/resend/", RegistrationResendView.as_view(), name="register-resend"),
+    path("register/nickname/", NicknameAvailabilityView.as_view(), name="register-nickname"),
     path("login/", LoginView.as_view(), name="login"),
     path("refresh/", RefreshView.as_view(), name="refresh"),
     path("logout/", LogoutView.as_view(), name="logout"),
