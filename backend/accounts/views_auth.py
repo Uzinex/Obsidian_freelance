@@ -22,7 +22,6 @@ from .models import (
     AuditEvent,
     AuthSession,
     OneTimeToken,
-    PendingRegistration,
     User,
     generate_token_hash,
 )
@@ -254,10 +253,7 @@ class NicknameAvailabilityView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         exists = User.objects.filter(nickname__iexact=nickname).exists()
-        pending_exists = PendingRegistration.objects.filter(
-            nickname__iexact=nickname, expires_at__gt=timezone.now()
-        ).exists()
-        if exists or pending_exists:
+        if exists:
             return Response(
                 {
                     "available": False,
