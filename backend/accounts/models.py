@@ -652,6 +652,9 @@ class OneTimeToken(models.Model):
 
 
 class AuditEvent(models.Model):
+    TYPE_REGISTRATION_STARTED = "registration_started"
+    TYPE_REGISTRATION_CODE_SENT = "registration_code_sent"
+    TYPE_REGISTRATION_VERIFIED = "registration_verified"
     TYPE_LOGIN = "login"
     TYPE_LOGOUT = "logout"
     TYPE_LOGOUT_ALL = "logout_all"
@@ -670,6 +673,9 @@ class AuditEvent(models.Model):
     TYPE_ACCESS_DENIED = "access_denied"
 
     EVENT_CHOICES = [
+        (TYPE_REGISTRATION_STARTED, "Registration started"),
+        (TYPE_REGISTRATION_CODE_SENT, "Registration code sent"),
+        (TYPE_REGISTRATION_VERIFIED, "Registration verified"),
         (TYPE_LOGIN, "Login"),
         (TYPE_LOGOUT, "Logout"),
         (TYPE_LOGOUT_ALL, "Logout all"),
