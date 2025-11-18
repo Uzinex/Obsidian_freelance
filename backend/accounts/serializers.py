@@ -3,6 +3,7 @@ from datetime import date, timedelta
 
 from django.conf import settings
 from django.contrib.auth import authenticate
+from django.contrib.auth.hashers import make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -227,6 +228,8 @@ class RegistrationStartSerializer(serializers.Serializer):
         otp_payload = generate_otp()
         locale = self.validated_data.get("locale", "ru")
         with transaction.atomic():
+            password_hash = make_password(self.validated_data["password"])
+            max_attempts = getattr(settings, "ACCOUNTS_OTP_MAX_ATTEMPTS", 5)
             defaults = {
                 "normalized_email": self.validated_data.get("normalized_email", ""),
                 "nickname": self.validated_data["nickname"],
@@ -238,6 +241,11 @@ class RegistrationStartSerializer(serializers.Serializer):
                 "ip_address": ip_address or None,
                 "user_agent": self.validated_data.get("user_agent", ""),
                 "expires_at": now + timedelta(seconds=ttl),
+                "password_hash": password_hash,
+                "otp_hash": otp_payload.hash,
+                "otp_salt": otp_payload.salt,
+                "otp_expires_at": otp_payload.expires_at,
+                "attempts_left": max_attempts,
             }
             pending, created = PendingRegistration.objects.select_for_update().get_or_create(
                 email=email,
@@ -269,7 +277,6 @@ class RegistrationStartSerializer(serializers.Serializer):
                 )
             for field, value in defaults.items():
                 setattr(pending, field, value)
-            pending.set_password(self.validated_data["password"])
             pending.set_otp(otp_payload)
             pending.mark_code_sent(sent_at=now)
             pending.expires_at = now + timedelta(seconds=ttl)
