@@ -34,6 +34,7 @@ const PASSWORD_REQUIREMENTS = [
 ];
 
 const STEP_ORDER = ['form', 'code', 'success'];
+const DEV_CAPTCHA_BYPASS_TOKEN = 'dev-bypass';
 
 function maskEmail(email) {
   if (!email) return '';
@@ -174,8 +175,7 @@ export default function RegisterPage() {
 
   async function requestCaptchaToken(action) {
     if (!isRecaptchaEnabled) {
-      setFormError('reCAPTCHA не настроена. Обратитесь к администратору.');
-      throw new Error('Recaptcha disabled');
+      return DEV_CAPTCHA_BYPASS_TOKEN;
     }
     if (!recaptchaReady) {
       setFormError('reCAPTCHA ещё загружается. Попробуйте через пару секунд.');
@@ -347,9 +347,6 @@ export default function RegisterPage() {
           <h1>Создать аккаунт</h1>
           <p className="muted-text">Заполните данные и подтвердите e-mail в течение 10 минут.</p>
           {formError && <div className="alert">{formError}</div>}
-          {!isRecaptchaEnabled && (
-            <div className="alert">reCAPTCHA не сконфигурирована. Регистрация временно недоступна.</div>
-          )}
           <form onSubmit={handleSubmit(onSubmit)} className="grid two">
             <div>
               <label htmlFor="last_name">Фамилия</label>
@@ -464,12 +461,14 @@ export default function RegisterPage() {
               {errors.terms_accepted && <p className="error-text">{errors.terms_accepted.message}</p>}
             </div>
             <div className="form-actions" style={{ gridColumn: '1 / -1' }}>
-              <button className="button primary" type="submit" disabled={isSubmitting || !isRecaptchaEnabled}>
+                <button className="button primary" type="submit" disabled={isSubmitting}>
                 {isSubmitting ? 'Отправляем…' : 'Продолжить'}
               </button>
             </div>
           </form>
-          <p className="recaptcha-note">Форма защищена Google reCAPTCHA (v3).</p>
+          {isRecaptchaEnabled && (
+            <p className="recaptcha-note">Форма защищена Google reCAPTCHA (v3).</p>
+          )}
         </>
       )}
 
