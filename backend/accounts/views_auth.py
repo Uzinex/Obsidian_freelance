@@ -22,6 +22,7 @@ from .models import (
     AuditEvent,
     AuthSession,
     OneTimeToken,
+    PendingRegistration,
     User,
     generate_token_hash,
 )
@@ -210,6 +211,72 @@ class RegistrationVerifyView(AuthCookieMixin, APIView):
         return response
 
 
+codex/implement-two-step-registration-process-7z4v8e
+class NicknameAvailabilityView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "register"
+
+    def get(self, request, *args, **kwargs):
+        nickname = (request.query_params.get("nickname") or "").strip()
+        if not nickname:
+            return Response(
+                {
+                    "available": False,
+                    "detail": _("Укажите никнейм для проверки."),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(nickname) < 3:
+            return Response(
+                {
+                    "available": False,
+                    "detail": _("Ник должен содержать минимум 3 символа."),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(nickname) > 150:
+            return Response(
+                {
+                    "available": False,
+                    "detail": _("Ник слишком длинный."),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        invalid_chars = set()
+        for char in nickname:
+            if char.isalnum() or char in {"_", "-", "."}:
+                continue
+            invalid_chars.add(char)
+        if invalid_chars:
+            return Response(
+                {
+                    "available": False,
+                    "detail": _("Разрешены только буквы, цифры, точки, дефис и подчёркивание."),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        exists = User.objects.filter(nickname__iexact=nickname).exists()
+        pending_exists = PendingRegistration.objects.filter(
+            nickname__iexact=nickname, expires_at__gt=timezone.now()
+        ).exists()
+        if exists or pending_exists:
+            return Response(
+                {
+                    "available": False,
+                    "detail": _("Ник уже занят. Попробуйте другой вариант."),
+                },
+                status=status.HTTP_200_OK,
+            )
+        return Response(
+            {
+                "available": True,
+                "detail": _("Ник свободен."),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+ main
 class LoginView(AuthCookieMixin, APIView):
     permission_classes = [permissions.AllowAny]
     throttle_scope = "login"

@@ -1937,3 +1937,168 @@ textarea:focus {
     align-items: stretch;
   }
 }
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+}
+
+.checkbox input {
+  margin-right: 0.5rem;
+}
+
+.muted-text {
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+.register-card {
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.stepper {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .stepper {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.step {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-radius: 16px;
+  border: 1px solid rgba(90, 24, 154, 0.18);
+  background: rgba(90, 24, 154, 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.step.is-active {
+  border-color: var(--color-primary);
+  box-shadow: 0 8px 20px rgba(36, 0, 70, 0.12);
+}
+
+.step.is-complete {
+  background: rgba(90, 24, 154, 0.12);
+}
+
+.step-index {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.step-label {
+  font-weight: 600;
+}
+
+.step-caption {
+  font-size: 0.9rem;
+  color: var(--color-muted);
+}
+
+.hint {
+  font-size: 0.9rem;
+  margin-top: -0.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--color-muted);
+}
+
+.hint.available {
+  color: #2f9e44;
+}
+
+.hint.taken,
+.hint.error {
+  color: #c92a2a;
+}
+
+.hint.checking {
+  color: #f08c00;
+}
+
+.password-hints ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1rem;
+  list-style: none;
+}
+
+.password-hints li {
+  margin-bottom: 0.25rem;
+  color: var(--color-muted);
+}
+
+.password-hints li.valid {
+  color: #2f9e44;
+}
+
+.password-hints ul li::marker {
+  content: '';
+}
+
+.terms-box {
+  grid-column: 1 / -1;
+}
+
+.recaptcha-note {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.otp-form {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.code-input {
+  text-align: center;
+  letter-spacing: 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.otp-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(90, 24, 154, 0.12);
+  font-size: 0.9rem;
+}
+
+.resend-box {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 16px;
+  background: rgba(90, 24, 154, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}

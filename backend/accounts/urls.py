@@ -11,6 +11,7 @@ from .views_auth import (
     EmailChangeRequestView,
     EmailVerifyConfirmView,
     EmailVerifyRequestView,
+    NicknameAvailabilityView,
     LoginView,
     LogoutAllView,
     LogoutView,
@@ -36,6 +37,9 @@ urlpatterns = [
     path("register/", RegistrationStartView.as_view(), name="register"),
     path("register/verify/", RegistrationVerifyView.as_view(), name="register-verify"),
     path("register/resend/", RegistrationResendView.as_view(), name="register-resend"),
+ codex/implement-two-step-registration-process-7z4v8e
+    path("register/nickname/", NicknameAvailabilityView.as_view(), name="register-nickname"),
+ main
     path("login/", LoginView.as_view(), name="login"),
     path("refresh/", RefreshView.as_view(), name="refresh"),
     path("logout/", LogoutView.as_view(), name="logout"),
