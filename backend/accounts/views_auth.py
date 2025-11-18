@@ -210,8 +210,6 @@ class RegistrationVerifyView(AuthCookieMixin, APIView):
         )
         return response
 
-
-codex/implement-two-step-registration-process-7z4v8e
 class NicknameAvailabilityView(APIView):
     permission_classes = [permissions.AllowAny]
     throttle_scope = "register"
