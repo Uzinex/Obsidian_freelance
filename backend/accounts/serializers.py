@@ -368,17 +368,24 @@ class RegistrationVerifySerializer(serializers.Serializer):
         email = attrs.get("email", "").strip().lower()
         code = attrs.get("code")
         attrs["email"] = email
-        try:
-            pending = PendingRegistration.objects.select_for_update().get(email=email)
-        except PendingRegistration.DoesNotExist as exc:
-            raise serializers.ValidationError({"code": _("Неверный код подтверждения.")}) from exc
-        if pending.is_expired:
-            pending.delete()
-            raise serializers.ValidationError({"code": _("Код истёк. Запросите новый.")})
-        if pending.is_locked:
-            raise serializers.ValidationError({"code": _("Слишком много неверных попыток. Попробуйте позже.")})
-        if not pending.verify_code(code):
-            raise serializers.ValidationError({"code": _("Неверный код подтверждения.")})
+        with transaction.atomic():
+            try:
+                pending = (
+                    PendingRegistration.objects.select_for_update().get(email=email)
+                )
+            except PendingRegistration.DoesNotExist as exc:
+                raise serializers.ValidationError(
+                    {"code": _("Неверный код подтверждения.")}
+                ) from exc
+            if pending.is_expired:
+                pending.delete()
+                raise serializers.ValidationError({"code": _("Код истёк. Запросите новый.")})
+            if pending.is_locked:
+                raise serializers.ValidationError(
+                    {"code": _("Слишком много неверных попыток. Попробуйте позже.")}
+                )
+            if not pending.verify_code(code):
+                raise serializers.ValidationError({"code": _("Неверный код подтверждения.")})
         attrs["pending"] = pending
         attrs.setdefault("device_id", secrets.token_hex(16))
         return attrs
