@@ -272,9 +272,7 @@ class NicknameAvailabilityView(APIView):
             },
             status=status.HTTP_200_OK,
         )
-
-
- main
+        
 class LoginView(AuthCookieMixin, APIView):
     permission_classes = [permissions.AllowAny]
     throttle_scope = "login"
