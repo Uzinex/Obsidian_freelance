@@ -43,6 +43,11 @@ export async function login(payload) {
   return response.data;
 }
 
+export async function authenticateWithGoogle(payload) {
+  const response = await apiClient.post('accounts/login/google/', payload);
+  return response.data;
+}
+
 export async function logout() {
   return apiClient.post('accounts/logout/');
 }

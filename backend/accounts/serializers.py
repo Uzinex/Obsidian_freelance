@@ -1,3 +1,4 @@
+import re
 import secrets
 from datetime import date, timedelta
 
@@ -10,6 +11,8 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 from rest_framework import serializers
 
 from marketplace.models import Skill
@@ -28,9 +31,10 @@ from .models import (
     WalletTransaction,
     generate_token_hash,
 )
+from .emails import EmailDeliveryError, send_registration_code_email
+from .gmail import GmailValidationError, ensure_gmail_exists
 from .otp import generate_otp
 from .recaptcha import RecaptchaVerificationError, verify_recaptcha
-from .emails import send_registration_code_email
 from .security import captcha_required
 from .twofactor import ensure_config, use_backup_code, verify_totp
 
@@ -171,6 +175,18 @@ class RegistrationStartSerializer(serializers.Serializer):
         "Если e-mail корректен, мы отправили код подтверждения на указанную почту."
     )
 
+    def validate_email(self, value: str) -> str:
+        email = (value or "").strip().lower()
+        normalized = _normalize_gmail(email)
+        if not normalized:
+            raise serializers.ValidationError(_("Допустимы только адреса @gmail.com."))
+        try:
+            ensure_gmail_exists(email)
+        except GmailValidationError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
+        self._normalized_email = normalized
+        return email
+
     def validate_birth_year(self, value):
         if not value:
             return value
@@ -189,9 +205,23 @@ class RegistrationStartSerializer(serializers.Serializer):
         return value
 
     def validate_nickname(self, value: str) -> str:
-        if User.objects.filter(nickname__iexact=value).exists():
+        nickname = (value or "").strip()
+        if len(nickname) < 3:
+            raise serializers.ValidationError(_("Ник должен содержать минимум 3 символа."))
+        if len(nickname) > 150:
+            raise serializers.ValidationError(_("Ник слишком длинный."))
+        invalid_chars = {
+            char
+            for char in nickname
+            if not (char.isalnum() or char in {"_", "-", "."})
+        }
+        if invalid_chars:
+            raise serializers.ValidationError(
+                _("Разрешены только буквы, цифры, точки, дефис и подчёркивание.")
+            )
+        if User.objects.filter(nickname__iexact=nickname).exists():
             raise serializers.ValidationError(_("This nickname is already taken."))
-        return value
+        return nickname
 
     def validate_password(self, value: str) -> str:
         try:
@@ -208,8 +238,13 @@ class RegistrationStartSerializer(serializers.Serializer):
         except RecaptchaVerificationError as exc:
             raise serializers.ValidationError({"captcha": str(exc)}) from exc
         email = attrs.get("email", "").strip().lower()
+        normalized_email = getattr(self, "_normalized_email", _normalize_gmail(email))
+        if not normalized_email:
+            raise serializers.ValidationError(
+                {"email": _("Допустимы только адреса @gmail.com.")}
+            )
         attrs["email"] = email
-        attrs["normalized_email"] = _normalize_gmail(email)
+        attrs["normalized_email"] = normalized_email
         attrs["client_ip"] = _client_ip_from_request(request)
         attrs["user_agent"] = request.META.get("HTTP_USER_AGENT", "") if request else ""
         attrs["email_exists"] = User.objects.filter(email__iexact=email).exists()
@@ -278,14 +313,36 @@ class RegistrationStartSerializer(serializers.Serializer):
             for field, value in defaults.items():
                 setattr(pending, field, value)
             pending.set_otp(otp_payload)
-            pending.mark_code_sent(sent_at=now)
             pending.expires_at = now + timedelta(seconds=ttl)
             pending.save()
-        send_registration_code_email(
-            to_email=email,
-            code=otp_payload.code,
-            locale=locale,
-        )
+            pending_id = pending.pk
+        try:
+            send_registration_code_email(
+                to_email=email,
+                code=otp_payload.code,
+                locale=locale,
+            )
+        except EmailDeliveryError as exc:
+            raise serializers.ValidationError(
+                {"detail": str(exc)}
+            ) from exc
+        sent_at = timezone.now()
+        with transaction.atomic():
+            pending = (
+                PendingRegistration.objects.select_for_update()
+                .filter(pk=pending_id)
+                .first()
+            )
+            if pending:
+                pending.mark_code_sent(sent_at=sent_at)
+                pending.save(
+                    update_fields=[
+                        "last_sent_at",
+                        "resend_available_at",
+                        "send_count",
+                        "updated_at",
+                    ]
+                )
         return {
             "email_sent": True,
             "message": self.default_message,
@@ -342,13 +399,37 @@ class RegistrationResendSerializer(serializers.Serializer):
                 )
             otp_payload = generate_otp()
             pending.set_otp(otp_payload)
-            pending.mark_code_sent(sent_at=now)
             pending.save()
-        send_registration_code_email(
-            to_email=pending.email,
-            code=otp_payload.code,
-            locale=pending.locale,
-        )
+            pending_id = pending.pk
+            pending_locale = pending.locale
+            pending_email = pending.email
+        try:
+            send_registration_code_email(
+                to_email=pending_email,
+                code=otp_payload.code,
+                locale=pending_locale,
+            )
+        except EmailDeliveryError as exc:
+            raise serializers.ValidationError(
+                {"detail": str(exc)}
+            ) from exc
+        sent_at = timezone.now()
+        with transaction.atomic():
+            pending = (
+                PendingRegistration.objects.select_for_update()
+                .filter(pk=pending_id)
+                .first()
+            )
+            if pending:
+                pending.mark_code_sent(sent_at=sent_at)
+                pending.save(
+                    update_fields=[
+                        "last_sent_at",
+                        "resend_available_at",
+                        "send_count",
+                        "updated_at",
+                    ]
+                )
         cooldown = getattr(
             settings, "ACCOUNTS_REGISTRATION_RESEND_COOLDOWN_SECONDS", 60
         )
@@ -422,6 +503,108 @@ class RegistrationVerifySerializer(serializers.Serializer):
             "device_id": self.validated_data.get("device_id"),
             "auto_login": self.validated_data.get("auto_login", True),
         }
+
+
+class GoogleIdentitySerializer(serializers.Serializer):
+    credential = serializers.CharField()
+    action = serializers.ChoiceField(
+        choices=[("auto", "auto"), ("login", "login"), ("register", "register")],
+        default="auto",
+    )
+    device_id = serializers.CharField(max_length=128, required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        client_id = getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "").strip()
+        if not client_id:
+            raise serializers.ValidationError(
+                {"detail": _("Включите Google OAuth в настройках сервера.")}
+            )
+        credential = attrs.get("credential")
+        try:
+            payload = google_id_token.verify_oauth2_token(
+                credential,
+                google_requests.Request(),
+                audience=client_id,
+            )
+        except ValueError as exc:  # pragma: no cover - network specific failures
+            raise serializers.ValidationError(
+                {"credential": _("Не удалось подтвердить Google-токен.")}
+            ) from exc
+        email = (payload.get("email") or "").strip().lower()
+        if not email:
+            raise serializers.ValidationError(
+                {"credential": _("Google-аккаунт не содержит адрес электронной почты.")}
+            )
+        normalized_email = _normalize_gmail(email)
+        if not normalized_email:
+            raise serializers.ValidationError(
+                {"credential": _("Поддерживаются только Gmail-аккаунты.")}
+            )
+        if not payload.get("email_verified", False):
+            raise serializers.ValidationError(
+                {"credential": _("Google не подтвердил этот Gmail.")}
+            )
+        attrs.update(
+            {
+                "email": email,
+                "normalized_email": normalized_email,
+                "google_payload": payload,
+                "device_id": attrs.get("device_id") or secrets.token_hex(16),
+            }
+        )
+        return attrs
+
+    def _sanitize_nickname(self, base: str) -> str:
+        sanitized = re.sub(r"[^a-z0-9._-]", "_", (base or "").lower())
+        sanitized = sanitized.strip("._") or "user"
+        return sanitized[:50]
+
+    def _generate_unique_nickname(self, email: str) -> str:
+        base_local = (email or "").split("@", 1)[0]
+        base = self._sanitize_nickname(base_local)
+        if len(base) < 3:
+            base = f"user_{secrets.token_hex(2)}"
+        candidate = base[:150]
+        attempts = 0
+        while User.objects.filter(nickname__iexact=candidate).exists():
+            attempts += 1
+            suffix = secrets.token_hex(2)
+            candidate = f"{base}_{suffix}"[:150]
+            if attempts > 10:
+                candidate = f"obsidian_{secrets.token_hex(3)}"[:150]
+        return candidate
+
+    def _create_user(self, payload: dict) -> User:
+        nickname = self._generate_unique_nickname(self.validated_data["email"])
+        first_name = (payload.get("given_name") or "Google").strip() or "Google"
+        last_name = (payload.get("family_name") or "User").strip() or "User"
+        user = User(
+            nickname=nickname,
+            email=self.validated_data["email"],
+            first_name=first_name[:150],
+            last_name=last_name[:150],
+            email_verified=True,
+            email_verified_at=timezone.now(),
+        )
+        user.set_unusable_password()
+        user.save()
+        return user
+
+    def save(self, **kwargs):
+        email = self.validated_data["email"]
+        action = self.validated_data.get("action", "auto")
+        payload = self.validated_data["google_payload"]
+        device_id = self.validated_data["device_id"]
+        user = User.objects.filter(email__iexact=email).first()
+        created = False
+        if user is None:
+            if action == "login":
+                raise serializers.ValidationError(
+                    {"detail": _("Аккаунт не найден. Зарегистрируйтесь через Google.")}
+                )
+            user = self._create_user(payload)
+            created = True
+        return {"user": user, "created": created, "device_id": device_id}
 
 
 class LoginSerializer(serializers.Serializer):

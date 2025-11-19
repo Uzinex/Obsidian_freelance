@@ -6,12 +6,15 @@ import {
   checkNicknameAvailability,
   fetchProfile,
   resendRegistrationCode,
+  authenticateWithGoogle,
   startRegistration,
   verifyRegistration,
 } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '../context/LocaleContext.jsx';
 import { useRecaptcha } from '../utils/useRecaptcha.js';
+import GoogleButton from '../components/GoogleButton.jsx';
+import { GOOGLE_CLIENT_ID } from '../utils/googleIdentity.js';
 
 const MAX_ATTEMPTS = 5;
 const PASSWORD_REQUIREMENTS = [
@@ -81,6 +84,7 @@ export default function RegisterPage() {
   const [resendLoading, setResendLoading] = useState(false);
   const [attemptsLeft, setAttemptsLeft] = useState(MAX_ATTEMPTS);
   const [nicknameStatus, setNicknameStatus] = useState({ state: 'idle', message: '' });
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const {
     register,
@@ -110,6 +114,7 @@ export default function RegisterPage() {
   const passwordValue = watch('password') || '';
   const passwordConfirm = watch('password_confirm') || '';
   const nicknameValue = watch('nickname') || '';
+  const googleEnabled = Boolean(GOOGLE_CLIENT_ID);
 
   const passwordChecks = useMemo(() => {
     return PASSWORD_REQUIREMENTS.map((requirement) => ({
@@ -238,6 +243,37 @@ export default function RegisterPage() {
     }
   }
 
+  async function handleGoogleSignup(credential) {
+    if (!credential || googleLoading || !googleEnabled) {
+      return;
+    }
+    setGoogleLoading(true);
+    setFormError('');
+    setGlobalMessage('');
+    try {
+      const response = await authenticateWithGoogle({ credential, action: 'register' });
+      if (response.access) {
+        applyAuthToken(response.access);
+        let profile;
+        try {
+          profile = await fetchProfile();
+        } catch (profileError) {
+          console.warn('Не удалось загрузить профиль после Google-регистрации', profileError);
+        }
+        login(response.access, { ...response.user, profile }, true);
+        navigate('/profile');
+      } else {
+        setStep('success');
+        setSuccessMessage('Аккаунт создан через Google.');
+      }
+    } catch (error) {
+      const data = error?.response?.data;
+      setFormError(collectErrorMessage(data));
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
+
   async function handleVerify(values) {
     setCodeError('');
     try {
@@ -346,6 +382,20 @@ export default function RegisterPage() {
         <>
           <h1>Создать аккаунт</h1>
           <p className="muted-text">Заполните данные и подтвердите e-mail в течение 10 минут.</p>
+          {googleEnabled && (
+            <>
+              <div className="google-auth-actions">
+                <GoogleButton text="signup" onCredential={handleGoogleSignup} disabled={googleLoading} />
+                <p className="muted-text small">
+                  Используйте подтверждённый Gmail, и мы автоматически пропустим шаг с кодом.
+                </p>
+                {googleLoading && <p className="muted-text small">Авторизуем через Google…</p>}
+              </div>
+              <div className="auth-divider">
+                <span>или</span>
+              </div>
+            </>
+          )}
           {formError && <div className="alert">{formError}</div>}
           <form onSubmit={handleSubmit(onSubmit)} className="grid two">
             <div>

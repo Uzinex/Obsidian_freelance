@@ -270,6 +270,10 @@ NOTIFY_WEBPUSH_ENABLED = communications_flags.is_feature_enabled("notify.webpush
 
 RECAPTCHA_SECRET_KEY = os.getenv("RECAPTCHA_SECRET_KEY", "").strip()
 RECAPTCHA_MIN_SCORE = float(os.getenv("RECAPTCHA_MIN_SCORE", "0.7"))
+DEFAULT_FROM_EMAIL = os.getenv(
+    "DEFAULT_FROM_EMAIL", "obsidianfreelance@gmail.com"
+).strip()
+GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "").strip()
 
 ACCOUNTS_REGISTRATION_TTL_SECONDS = int(
     os.getenv("ACCOUNTS_REGISTRATION_TTL_SECONDS", str(60 * 60 * 24))
