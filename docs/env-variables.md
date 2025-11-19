@@ -9,7 +9,7 @@
 | `DJANGO_CORS_ALLOWED_ORIGINS` | backend | list[URL] | нет | `http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173` | Разрешённые источники для CORS. |
 | `DJANGO_CORS_ALLOW_CREDENTIALS` | backend | bool | нет | `True` | Управляет передачей cookie/заголовков авторизации в CORS-запросах. |
 | `VERIFICATION_ADMIN_EMAIL` | backend | email | да | _(пусто)_ | Email аккаунта, уполномоченного утверждать заявки на верификацию. |
-| `DEFAULT_FROM_EMAIL` | backend | email | нет | `obsidianfreelance@gmail.com` | Адрес, с которого уходят сервисные письма. |
+| `DEFAULT_FROM_EMAIL` | backend | email | нет | `uzbek.next.exchange@gmail.com` | Адрес, с которого уходят сервисные письма. |
 | `RECAPTCHA_SECRET_KEY` | backend | str | да | _(пусто)_ | Секретный ключ Google reCAPTCHA v3 для серверной проверки. |
 | `RECAPTCHA_MIN_SCORE` | backend | float | нет | `0.7` | Минимальный балл reCAPTCHA, при котором запрос считается честным. |
 | `VITE_API_BASE_URL` | frontend | URL | да | `http://localhost:8000` | Базовый URL API, к которому обращается фронтенд. |
