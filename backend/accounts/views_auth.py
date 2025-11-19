@@ -32,6 +32,7 @@ from .serializers import (
     EmailChangeRequestSerializer,
     EmailTokenSerializer,
     EmailVerificationRequestSerializer,
+    GoogleIdentitySerializer,
     LoginSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
@@ -199,6 +200,13 @@ class RegistrationVerifyView(AuthCookieMixin, APIView):
         )
         response = Response(response_payload, status=status.HTTP_201_CREATED)
         self.set_refresh_cookie(response, refresh_token, session.refresh_token_expires_at)
+        if result.get("created"):
+            audit_logger.log_event(
+                event_type=AuditEvent.TYPE_REGISTRATION_VERIFIED,
+                user=user,
+                request=request,
+                metadata={"email": user.email, "source": "google"},
+            )
         audit_logger.log_event(
             event_type=AuditEvent.TYPE_LOGIN,
             user=user,
@@ -348,6 +356,67 @@ class LoginView(AuthCookieMixin, APIView):
                 "access_expires_in": jwt_conf.JWT_ACCESS_TTL_SECONDS,
                 "session": AuthSessionSerializer(session).data,
                 "user": UserSerializer(user).data,
+            }
+        )
+        self.set_refresh_cookie(response, refresh_token, session.refresh_token_expires_at)
+        return response
+
+
+class GoogleIdentityView(AuthCookieMixin, APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "login"
+
+    def post(self, request, *args, **kwargs):
+        serializer = GoogleIdentitySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result = serializer.save()
+        user = result["user"]
+        device_id = result.get("device_id") or secrets.token_hex(16)
+        now = timezone.now()
+        absolute_expiration = now + timedelta(
+            seconds=jwt_conf.JWT_REFRESH_ABSOLUTE_LIFETIME_SECONDS
+        )
+        user_agent = request.META.get("HTTP_USER_AGENT", "")
+        ip_address = _client_ip(request)
+        with transaction.atomic():
+            session = AuthSession.objects.create(
+                user=user,
+                device_id=device_id,
+                user_agent=user_agent,
+                ip_address=ip_address,
+                refresh_token_hash=generate_token_hash(secrets.token_urlsafe(16)),
+                current_refresh_jti=secrets.token_hex(8),
+                refresh_token_expires_at=absolute_expiration,
+                absolute_expiration_at=absolute_expiration,
+                last_refreshed_at=now,
+                extra={"two_factor_verified": False, "google": True},
+            )
+            refresh_token, refresh_jti = issue_refresh_token(user=user, session=session)
+            session.update_refresh(
+                token=refresh_token,
+                jti=refresh_jti,
+                ttl_seconds=jwt_conf.JWT_REFRESH_TTL_SECONDS,
+            )
+        access_token, _ = issue_access_token(
+            user=user,
+            session=session,
+            two_factor_verified=False,
+        )
+        audit_logger.log_event(
+            event_type=AuditEvent.TYPE_LOGIN,
+            user=user,
+            request=request,
+            session=session,
+            device_id=device_id,
+            metadata={"source": "google", "registration": result.get("created", False)},
+        )
+        response = Response(
+            {
+                "access": access_token,
+                "access_expires_in": jwt_conf.JWT_ACCESS_TTL_SECONDS,
+                "session": AuthSessionSerializer(session).data,
+                "user": UserSerializer(user).data,
+                "created": result.get("created", False),
             }
         )
         self.set_refresh_cookie(response, refresh_token, session.refresh_token_expires_at)

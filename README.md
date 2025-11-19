@@ -25,5 +25,13 @@ npm install
 npm run dev -- --host 0.0.0.0 --port 5173
 ```
 
+### reCAPTCHA и Google OAuth
+Для рабочей регистрации необходимо задать ключи в переменных окружения:
+
+- `RECAPTCHA_SECRET_KEY` и `VITE_RECAPTCHA_SITE_KEY` — пара ключей Google reCAPTCHA v3.
+- `GOOGLE_OAUTH_CLIENT_ID` и `VITE_GOOGLE_CLIENT_ID` — OAuth Client ID для кнопок «Войти/Зарегистрироваться с Google».
+
+Письма с кодом подтверждения отправляются с адреса `obsidianfreelance@gmail.com`. При необходимости переопределите его через `DEFAULT_FROM_EMAIL`.
+
 ## Документация
 Расширенные инструкции расположены в каталоге [docs/](docs/).
