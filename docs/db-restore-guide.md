@@ -83,5 +83,5 @@ You can rerun the command safely; it updates existing demo objects instead of du
 - Use `pg_restore --list backup.dump` to inspect the contents of a custom backup before applying it.
 - If migrations fail because of conflicts with restored data, review the failing migration and
   adjust the database manually before rerunning `python manage.py migrate`.
-- Восстановление всегда выполняйте против Railway-инстанса (`shortline.proxy.rlwy.net`). `DATABASE_URL`
+- Восстановление всегда выполняйте против Railway-инстанса (`trolley.proxy.rlwy.net`). `DATABASE_URL`
   зафиксирован в коде, поэтому любые дампы нужно разворачивать именно туда перед запуском миграций и сидов.

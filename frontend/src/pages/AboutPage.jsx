@@ -60,6 +60,85 @@ const stats = [
   { value: '48 часов', label: 'Среднее время на подбор команды под задачу' },
 ];
 
+const howItWorksCopy = {
+  ru: [
+    {
+      id: 'brief',
+      title: 'Бриф и скоринг',
+      description: 'Уточняем цели, формируем KPI и проверяем проект на риски. Курируем бриф и оцениваем бюджет.',
+    },
+    {
+      id: 'match',
+      title: 'Подбор команды',
+      description: 'В течение 48 часов выдаём shortlist специалистов и компаний с подтверждённым стеком.',
+    },
+    {
+      id: 'kickoff',
+      title: 'Запуск и спринты',
+      description: 'Escrow фиксирует бюджет по этапам, а кураторы следят за сроками и качеством поставки.',
+    },
+    {
+      id: 'review',
+      title: 'Сдача и аналитика',
+      description: 'Собираем отзывы, считаем фактический ROI и оптимизируем дальнейший pipeline.',
+    },
+  ],
+  uz: [
+    { id: 'brief', title: 'Brif va skoring', description: 'Maqsad va KPI ni aniqlab, loyihani risklarga tekshiramiz.' },
+    { id: 'match', title: 'Komanda tanlash', description: '48 soat ichida tasdiqlangan mutaxassislar shortlistini beramiz.' },
+    { id: 'kickoff', title: 'Start va sprintlar', description: 'Escrow byudjetni bosqichlarga bo‘lib, kuratorlar sifatni nazorat qiladi.' },
+    { id: 'review', title: 'Qabul va analitika', description: 'Feedback yig‘amiz va ROI ni hisoblab, keyingi ishlarni rejalashtiramiz.' },
+  ],
+};
+
+const monitoringPoints = {
+  ru: [
+    'Ежедневные отчёты о прогрессе и автоматические уведомления по SLA.',
+    'Статус escrow отражается в Grafana; при отклонениях срабатывает алёрт.',
+    'При нарушении KPI куратор инициирует разбор в течение 4 часов.',
+  ],
+  uz: [
+    'Kundalik прогресс-репортlar va SLA bo‘yicha avtomatik xabarlar.',
+    'Escrow statusi графанада ko‘rsatiladi, buzilish bo‘lsa — алёрт.',
+    'KPI bajarilmasa, kuраторlar жалобани 4 soatda ko‘rib chiqadi.',
+  ],
+};
+
+const escrowFeatures = {
+  ru: [
+    {
+      title: 'Бюджет под защитой',
+      description: 'Деньги хранятся на сегрегированном счёте банка-партнёра и разблокируются после приёмки.',
+    },
+    {
+      title: 'Staged-платежи',
+      description: 'Каждый спринт имеет свой лимит, SLA и webhooks для автоматизации.',
+    },
+    {
+      title: 'Панель прозрачности',
+      description: 'Владелец проекта видит burn-down, финансовые потоки и логи доступов.',
+    },
+  ],
+  uz: [
+    { title: 'Budjet himoyada', description: 'Pul sherik bank hisobida saqlanadi va qabuldan keyin yechiladi.' },
+    { title: 'Bosqichma-bosqich to‘lov', description: 'Har bir sprintga alohida limit va SLA belgilanadi.' },
+    { title: 'Shaffof panel', description: 'Buyurtmachi burn-down va moliyaviy loglarni ko‘radi.' },
+  ],
+};
+
+const escrowBenefits = {
+  ru: [
+    'AML/KYC проверка и автоматические compliance-логи.',
+    'Стратегия stale-while-revalidate для статусов в реальном времени.',
+    'Наблюдаемость в Grafana и Looker Studio для анализа конверсии.',
+  ],
+  uz: [
+    'AML/KYC tekshiruvi va avtomatik compliance loglar.',
+    'Escrow статусlari uchun stale-while-revalidate strategiyasi.',
+    'Grafana va Looker Studio dashboardlaridan konversiyani kuzatish.',
+  ],
+};
+
 const approaches = [
   {
     title: 'Стратегическая экспертиза',
@@ -81,6 +160,10 @@ const approaches = [
 export default function AboutPage() {
   const { locale } = useLocale();
   const seo = publicContent[locale].seo.about;
+  const howItWorks = howItWorksCopy[locale];
+  const monitoringList = monitoringPoints[locale];
+  const escrow = escrowFeatures[locale];
+  const escrowList = escrowBenefits[locale];
 
   return (
     <div className="about-page" data-analytics-id="about">
@@ -131,6 +214,52 @@ export default function AboutPage() {
               <p>{approach.description}</p>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section className="card about-how-it-works" id="how-it-works">
+        <h2>{locale === 'uz' ? 'Qanday ishlaymiz' : 'Как это работает'}</h2>
+        <div className="grid two">
+          {howItWorks.map((step, index) => (
+            <article key={step.id} className="step-card">
+              <div className="step-index">0{index + 1}</div>
+              <h3>{step.title}</h3>
+              <p>{step.description}</p>
+            </article>
+          ))}
+        </div>
+        <div className="card soft" style={{ marginTop: '1.5rem' }}>
+          <h3>{locale === 'uz' ? 'Monitoring va eskalatsiya' : 'Мониторинг и эскалации'}</h3>
+          <ul>
+            {monitoringList.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section className="card about-escrow" id="escrow">
+        <h2>{locale === 'uz' ? 'Escrow va to‘lovlarni himoya qilish' : 'Escrow: как мы защищаем платежи'}</h2>
+        <p>
+          {locale === 'uz'
+            ? 'Escrow orqali budjet bosqichlarga bo‘linadi, to‘lovlar esa qabuldan so‘ng yechiladi. Kuratorlar va monitoring xavfsiz va shaffof jarayonni taʼminlaydi.'
+            : 'Escrow фиксирует бюджет по этапам, выплаты происходят только после приемки, а кураторы и наблюдаемость гарантируют безопасность.'}
+        </p>
+        <div className="grid three">
+          {escrow.map((feature) => (
+            <article key={feature.title} className="feature-card">
+              <h3>{feature.title}</h3>
+              <p>{feature.description}</p>
+            </article>
+          ))}
+        </div>
+        <div className="card soft" style={{ marginTop: '1.5rem' }}>
+          <h3>{locale === 'uz' ? 'Escrow afzalliklari' : 'Преимущества escrow'}</h3>
+          <ul>
+            {escrowList.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
         </div>
       </section>
 
