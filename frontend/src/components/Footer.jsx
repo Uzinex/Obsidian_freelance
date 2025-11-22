@@ -25,7 +25,7 @@ export default function Footer() {
             <Link to={buildPath('/about')}>О нас</Link>
             <Link to={buildPath('/contacts')}>Контакты</Link>
             <Link to={buildPath('/faq')}>FAQ</Link>
-            <Link to={buildPath('/pricing')}>Тарифы</Link>
+            <Link to={buildPath('/profile#pricing')}>Тарифы</Link>
           </div>
           <div className="footer-column">
             <h4>Контакты</h4>

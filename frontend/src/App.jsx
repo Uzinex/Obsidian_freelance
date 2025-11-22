@@ -21,8 +21,6 @@ import ModerationQueuePage from './pages/ModerationQueuePage.jsx';
 import DisputeBackofficePage from './pages/DisputeBackofficePage.jsx';
 import NotificationSettingsPage from './pages/NotificationSettingsPage.jsx';
 import CookieConsentBanner from './components/CookieConsentBanner.jsx';
-import HowItWorksPage from './pages/public/HowItWorksPage.jsx';
-import EscrowPage from './pages/public/EscrowPage.jsx';
 import CategoriesShowcasePage from './pages/public/CategoriesShowcasePage.jsx';
 import PublicProfilePage from './pages/public/PublicProfilePage.jsx';
 import FAQPage from './pages/public/FAQPage.jsx';
@@ -32,7 +30,6 @@ import ContactsPage from './pages/public/ContactsPage.jsx';
 import TermsPage from './pages/public/TermsPage.jsx';
 import PrivacyPage from './pages/public/PrivacyPage.jsx';
 import CookiesPage from './pages/public/CookiesPage.jsx';
-import PricingPage from './pages/public/PricingPage.jsx';
 
 function PublicLayout() {
   const { locale } = useParams();
@@ -60,8 +57,8 @@ function AppRoutes() {
         <Route index element={<HomePage />} />
         <Route path="about" element={<AboutPage />} />
         <Route path="contacts" element={<ContactsPage />} />
-        <Route path="how-it-works" element={<HowItWorksPage />} />
-        <Route path="escrow" element={<EscrowPage />} />
+        <Route path="how-it-works" element={<Navigate to="../about#how-it-works" replace />} />
+        <Route path="escrow" element={<Navigate to="../about#escrow" replace />} />
         <Route path="categories" element={<CategoriesShowcasePage />} />
         <Route path="profiles/:slug" element={<PublicProfilePage />} />
         <Route path="faq" element={<FAQPage />} />
@@ -90,7 +87,7 @@ function AppRoutes() {
         <Route path="terms" element={<TermsPage />} />
         <Route path="privacy" element={<PrivacyPage />} />
         <Route path="cookies" element={<CookiesPage />} />
-        <Route path="pricing" element={<PricingPage />} />
+        <Route path="pricing" element={<Navigate to="../profile#pricing" replace />} />
       </Route>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />

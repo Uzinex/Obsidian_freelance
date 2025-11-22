@@ -20,16 +20,6 @@ export default function Header() {
         label: 'О нас',
         icon: 'info',
       },
-      {
-        to: '/how-it-works',
-        label: 'Как это работает',
-        icon: 'idea',
-      },
-      {
-        to: '/escrow',
-        label: 'Escrow',
-        icon: 'escrow',
-      },
     ];
 
     base.push({
@@ -42,12 +32,6 @@ export default function Header() {
       to: '/freelancers',
       label: 'Фрилансеры',
       icon: 'team',
-    });
-
-    base.push({
-      to: '/pricing',
-      label: 'Тарифы',
-      icon: 'bookmark',
     });
 
     if (isAuthenticated) {

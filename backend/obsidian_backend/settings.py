@@ -147,7 +147,7 @@ CHANNEL_LAYERS = {
 
 REQUIRED_DATABASE_URL = (
     "postgresql://postgres:"
-    "npcRdqPDlxlPJnwfvRBltzMjecjAosWM@shortline.proxy.rlwy.net:52464/railway"
+    "BKcXpurIMpiYPkUcxKEHYsZLjoDLYZYP@trolley.proxy.rlwy.net:29631/railway"
 )
 
 configured_database_url = os.getenv("DATABASE_URL")
@@ -158,7 +158,7 @@ else:
 
 if database_url != REQUIRED_DATABASE_URL:
     raise ImproperlyConfigured(
-        "DATABASE_URL должен ссылаться на Railway-инстанс shortline.proxy.rlwy.net. "
+        "DATABASE_URL должен ссылаться на Railway-инстанс trolley.proxy.rlwy.net. "
         "Пожалуйста, не переопределяйте подключение на локальную базу."
     )
 

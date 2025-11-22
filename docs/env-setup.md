@@ -10,7 +10,7 @@
    > Если шаблона нет, создайте `.env`, опираясь на таблицу из `env-variables.md`.
 2. Откройте `.env` в любимом редакторе и заполните обязательные значения:
    - `DJANGO_SECRET_KEY` — сгенерируйте уникальную строку (например, через `python -c "import secrets; print(secrets.token_urlsafe(50))"`).
-   - `DATABASE_URL` — _не меняйте_. Бэкенд жёстко привязан к Railway-инстансу `postgresql://postgres:npcRdqPDlxlPJnwfvRBltzMjecjAosWM@shortline.proxy.rlwy.net:52464/railway` и упадёт, если задать другой URL.
+   - `DATABASE_URL` — _не меняйте_. Бэкенд жёстко привязан к Railway-инстансу `postgresql://postgres:BKcXpurIMpiYPkUcxKEHYsZLjoDLYZYP@trolley.proxy.rlwy.net:29631/railway` и упадёт, если задать другой URL.
    - `FRONTEND_BASE_URL` и другие URL — обновите в соответствии с вашим окружением.
 3. Значения для интеграций (e-mail, S3, OAuth и т. д.) оставьте пустыми или заполните по необходимости. При работе в команде запросите актуальные креденшлы у ответственного за DevOps.
 4. После обновления `.env` перезапустите backend и frontend, чтобы конфигурация применилась.

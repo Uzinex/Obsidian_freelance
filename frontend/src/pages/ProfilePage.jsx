@@ -19,6 +19,8 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useLocale } from '../context/LocaleContext.jsx';
 import SkillSelector from '../components/SkillSelector.jsx';
 import NotificationCenter from '../components/notifications/NotificationCenter.jsx';
+import Icon from '../components/Icon.jsx';
+import { publicContent } from '../mocks/publicContent.js';
 import { formatCurrency, formatDateTime } from '../utils/formatting.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -38,6 +40,21 @@ const registrationTypes = [
   { value: 'mchj', label: 'MCHJ' },
   { value: 'yatt', label: 'YATT' },
 ];
+
+function formatTierPrice(tier, locale) {
+  if (tier.price === 'custom') {
+    return locale === 'uz' ? 'Individual' : 'Индивидуально';
+  }
+  if (tier.currency === 'budget_share') {
+    return `${tier.price * 100}% бюджета`;
+  }
+  if (typeof tier.price === 'number') {
+    const formatter = new Intl.NumberFormat(locale === 'uz' ? 'uz-UZ' : 'ru-RU');
+    const label = locale === 'uz' ? "so'm" : 'сум';
+    return `${formatter.format(tier.price)} ${tier.currency === 'UZS' ? label : tier.currency}`;
+  }
+  return tier.price;
+}
 
 function resolveAvatar(url) {
   if (!url) return '';
@@ -96,6 +113,8 @@ export default function ProfilePage() {
   const [contractError, setContractError] = useState('');
   const profile = user?.profile;
   const profileDefaults = useMemo(() => getProfileFormDefaults(profile), [profile]);
+  const pricing = publicContent[locale].pricing;
+  const pricingSeo = publicContent[locale].seo.pricing;
 
   const form = useForm({
     defaultValues: profileDefaults,
@@ -496,6 +515,55 @@ export default function ProfilePage() {
             <p className="subtle">Операции кошелька пока отсутствуют.</p>
           )}
         </div>
+      </section>
+
+      <section className="card pricing-card" id="pricing">
+        <div className="section-header">
+          <div>
+            <h2>{pricingSeo.title}</h2>
+            <p className="subtle">{pricingSeo.description}</p>
+          </div>
+        </div>
+        <div className="pricing-grid">
+          {pricing.tiers.map((tier) => (
+            <article key={tier.name} className="pricing-tier">
+              <div className="pricing-tier-head">
+                <h3>{tier.name}</h3>
+                <p>{tier.description}</p>
+                <span className="price-tag">{formatTierPrice(tier, locale)}</span>
+              </div>
+              <ul>
+                {tier.features.map((feature) => (
+                  <li key={feature}>
+                    <Icon name="check" size={16} decorative /> {feature}
+                  </li>
+                ))}
+              </ul>
+            </article>
+          ))}
+        </div>
+        <section className="card payouts" style={{ marginTop: '1.5rem' }}>
+          <h3>{locale === 'uz' ? 'To‘lov kanallari' : 'Пополнение и выплаты'}</h3>
+          <ul>
+            {pricing.payouts.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </section>
+        <section className="card changelog" style={{ marginTop: '1.5rem' }}>
+          <h3>{locale === 'uz' ? 'Escrow yangilanishlari' : 'Публичный changelog escrow'}</h3>
+          <div className="changelog-list">
+            {pricing.changelog.map((entry) => (
+              <article key={entry.version} className="changelog-entry">
+                <header>
+                  <strong>{entry.version}</strong>
+                  <span>{entry.date}</span>
+                </header>
+                <p>{entry.summary}</p>
+              </article>
+            ))}
+          </div>
+        </section>
       </section>
 
       <section className="card notifications-card">
