@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { fetchCategories, fetchOrders, fetchSkills } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -27,6 +27,11 @@ function toObject(params) {
   return Object.fromEntries(params.entries());
 }
 
+function serializeParams(object) {
+  const sortedEntries = Object.entries(object).sort(([a], [b]) => a.localeCompare(b));
+  return new URLSearchParams(sortedEntries).toString();
+}
+
 export default function OrdersPage() {
   const [params, setParams] = useSearchParams();
   const [orders, setOrders] = useState([]);
@@ -46,6 +51,8 @@ export default function OrdersPage() {
 
   const role = user?.profile?.role || user?.role;
   const paramsKey = params.toString();
+  const lastOrderQueryRef = useRef('');
+  const filtersLoadedRef = useRef(false);
 
   useEffect(() => {
     async function loadFilters() {
@@ -60,7 +67,10 @@ export default function OrdersPage() {
         console.error('Не удалось загрузить фильтры', error);
       }
     }
-    loadFilters();
+    if (!filtersLoadedRef.current) {
+      filtersLoadedRef.current = true;
+      loadFilters();
+    }
   }, []);
 
   useEffect(() => {
@@ -68,6 +78,12 @@ export default function OrdersPage() {
     let isMounted = true;
 
     async function loadOrders() {
+      const queryString = serializeParams(debouncedQuery);
+      if (queryString === lastOrderQueryRef.current) {
+        return;
+      }
+      lastOrderQueryRef.current = queryString;
+
       setLoading(true);
       try {
         const data = await fetchOrders(debouncedQuery, { signal: controller.signal });
