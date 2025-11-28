@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import re
+
 from rest_framework.throttling import SimpleRateThrottle
 
 
@@ -80,7 +82,8 @@ class EndpointUserRateThrottle(EndpointRateThrottle):
             if candidate:
                 break
         if candidate:
-            return f"anon:{candidate}"
+            sanitized = re.sub(r"[^a-z0-9:._-]", "_", candidate)
+            return f"anon:{sanitized}"
         return None
 
 
