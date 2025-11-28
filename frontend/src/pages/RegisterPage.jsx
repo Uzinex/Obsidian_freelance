@@ -12,7 +12,6 @@ import {
 } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '../context/LocaleContext.jsx';
-import { useRecaptcha } from '../utils/useRecaptcha.js';
 import GoogleButton from '../components/GoogleButton.jsx';
 import { GOOGLE_CLIENT_ID } from '../utils/googleIdentity.js';
 
@@ -37,8 +36,6 @@ const PASSWORD_REQUIREMENTS = [
 ];
 
 const STEP_ORDER = ['form', 'code', 'success'];
-const DEV_CAPTCHA_BYPASS_TOKEN = 'dev-bypass';
-
 function maskEmail(email) {
   if (!email) return '';
   const [local, domain] = email.split('@');
@@ -84,7 +81,6 @@ function mapEmailResponseMessage(payload) {
 export default function RegisterPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const { execute: executeRecaptcha, ready: recaptchaReady, isEnabled: isRecaptchaEnabled } = useRecaptcha();
   const [step, setStep] = useState('form');
   const [pendingEmail, setPendingEmail] = useState('');
   const [globalMessage, setGlobalMessage] = useState('');
@@ -189,32 +185,10 @@ export default function RegisterPage() {
 
   const stepIndex = STEP_ORDER.indexOf(step);
 
-  async function requestCaptchaToken(action) {
-    if (!isRecaptchaEnabled) {
-      return DEV_CAPTCHA_BYPASS_TOKEN;
-    }
-    if (!recaptchaReady) {
-      setFormError('reCAPTCHA ещё загружается. Попробуйте через пару секунд.');
-      throw new Error('Recaptcha not ready');
-    }
-    try {
-      const token = await executeRecaptcha(action);
-      if (!token) {
-        throw new Error('Empty token');
-      }
-      return token;
-    } catch (error) {
-      const reason = error?.message || 'Не удалось подтвердить reCAPTCHA.';
-      setFormError(reason);
-      throw error;
-    }
-  }
-
   async function onSubmit(values) {
     setFormError('');
     setGlobalMessage('');
     try {
-      const captchaToken = await requestCaptchaToken('register_start');
       const birthYear = values.birth_year ? Number(values.birth_year) : undefined;
       const payload = {
         first_name: values.first_name?.trim(),
@@ -227,7 +201,6 @@ export default function RegisterPage() {
         password_confirm: undefined,
         locale: values.locale || DEFAULT_LOCALE,
         terms_accepted: values.terms_accepted,
-        captcha: captchaToken,
       };
       delete payload.password_confirm;
       const response = await startRegistration(payload);
@@ -336,8 +309,7 @@ export default function RegisterPage() {
     setResendLoading(true);
     setFormError('');
     try {
-      const captchaToken = await requestCaptchaToken('register_resend');
-      const response = await resendRegistrationCode({ email: pendingEmail, captcha: captchaToken });
+      const response = await resendRegistrationCode({ email: pendingEmail });
       setGlobalMessage(response.detail);
       setCooldown(response.cooldown ?? 60);
     } catch (error) {
@@ -527,9 +499,6 @@ export default function RegisterPage() {
               </button>
             </div>
           </form>
-          {isRecaptchaEnabled && (
-            <p className="recaptcha-note">Форма защищена Google reCAPTCHA (v3).</p>
-          )}
         </>
       )}
 
