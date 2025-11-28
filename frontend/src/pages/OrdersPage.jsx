@@ -33,6 +33,7 @@ export default function OrdersPage() {
   const [categories, setCategories] = useState([]);
   const [skills, setSkills] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [debouncedQuery, setDebouncedQuery] = useState(() => toObject(params));
   const [savedFilters, setSavedFilters] = useState([]);
   const [saveLabel, setSaveLabel] = useState('');
   const [subscription, setSubscription] = useState(SUBSCRIPTION_DEFAULT);
@@ -63,19 +64,43 @@ export default function OrdersPage() {
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
+    let isMounted = true;
+
     async function loadOrders() {
       setLoading(true);
       try {
-        const query = toObject(params);
-        const data = await fetchOrders(query);
-        setOrders(data.results || data);
+        const data = await fetchOrders(debouncedQuery, { signal: controller.signal });
+        if (isMounted) {
+          setOrders(data.results || data);
+        }
       } catch (error) {
-        console.error('Не удалось загрузить заказы', error);
+        if (!controller.signal.aborted && error.name !== 'CanceledError' && error.name !== 'AbortError') {
+          console.error('Не удалось загрузить заказы', error);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
+
     loadOrders();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [debouncedQuery]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedQuery(toObject(params));
+    }, 250);
+
+    return () => {
+      clearTimeout(timeout);
+    };
   }, [paramsKey]);
 
   useEffect(() => {
