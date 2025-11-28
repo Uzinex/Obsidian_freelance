@@ -276,12 +276,23 @@ RECAPTCHA_FAIL_OPEN = os.getenv("RECAPTCHA_FAIL_OPEN", "true").lower() in {
     "yes",
     "on",
 }
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend"
+).strip()
 EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com").strip()
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "").strip()
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "").strip()
 EMAIL_USE_TLS = get_bool_env("EMAIL_USE_TLS", default=True)
+
+# Gracefully degrade to console backend in development when SMTP credentials
+# are not provided. This prevents auth endpoints from failing hard while still
+# requiring credentials in production by setting EMAIL_BACKEND explicitly.
+if (
+    EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend"
+    and (not EMAIL_HOST_USER or not EMAIL_HOST_PASSWORD)
+):
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER).strip()
 GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "").strip()
