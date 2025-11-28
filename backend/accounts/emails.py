@@ -43,6 +43,9 @@ def send_auth_email(*, template: str, subject: str, to_email: str, context: dict
 def _ensure_email_backend_configured() -> None:
     """Validate that SMTP credentials are present before attempting delivery."""
 
+    if settings.EMAIL_BACKEND != "django.core.mail.backends.smtp.EmailBackend":
+        return
+
     if not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
         logger.error(
             "Email backend credentials are missing: EMAIL_HOST_USER or EMAIL_HOST_PASSWORD"
