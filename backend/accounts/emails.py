@@ -19,7 +19,7 @@ class EmailDeliveryError(Exception):
 
 def send_auth_email(*, template: str, subject: str, to_email: str, context: dict) -> None:
     body = render_to_string(template, context)
-    from_email = settings.DEFAULT_FROM_EMAIL or "uzbek.next.exchange@gmail.com"
+    from_email = settings.DEFAULT_FROM_EMAIL or settings.EMAIL_HOST_USER
     try:
         send_mail(subject, body, from_email, [to_email], fail_silently=False)
     except (SMTPException, BadHeaderError, OSError) as exc:
