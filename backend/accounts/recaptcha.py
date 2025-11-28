@@ -3,9 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+import logging
+
 import httpx
 from django.conf import settings
-from django.utils.log import getLogger
 
 
 class RecaptchaVerificationError(Exception):
@@ -20,7 +21,7 @@ class RecaptchaResult:
     raw: dict[str, Any] | None = None
 
 
-logger = getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 _VERIFY_ENDPOINT = "https://www.google.com/recaptcha/api/siteverify"
