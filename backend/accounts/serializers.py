@@ -32,7 +32,6 @@ from .models import (
     generate_token_hash,
 )
 from .emails import EmailDeliveryError, send_registration_code_email
-from .gmail import GmailValidationError, ensure_gmail_exists
 from .otp import generate_otp
 from .recaptcha import RecaptchaVerificationError, verify_recaptcha
 from .security import captcha_required
@@ -164,7 +163,7 @@ class RegistrationStartSerializer(serializers.Serializer):
     last_name = serializers.CharField(max_length=150)
     patronymic = serializers.CharField(max_length=150, required=False, allow_blank=True)
     nickname = serializers.CharField(max_length=150)
-    email = serializers.EmailField()
+    email = serializers.EmailField(error_messages={"invalid": _("Некорректный email")})
     birth_year = serializers.IntegerField(required=False)
     password = serializers.CharField(write_only=True)
     captcha = serializers.CharField(write_only=True)
@@ -177,14 +176,7 @@ class RegistrationStartSerializer(serializers.Serializer):
 
     def validate_email(self, value: str) -> str:
         email = (value or "").strip().lower()
-        normalized = _normalize_gmail(email)
-        if not normalized:
-            raise serializers.ValidationError(_("Допустимы только адреса @gmail.com."))
-        try:
-            ensure_gmail_exists(email)
-        except GmailValidationError as exc:
-            raise serializers.ValidationError(str(exc)) from exc
-        self._normalized_email = normalized
+        self._normalized_email = email
         return email
 
     def validate_birth_year(self, value):
@@ -238,11 +230,7 @@ class RegistrationStartSerializer(serializers.Serializer):
         except RecaptchaVerificationError as exc:
             raise serializers.ValidationError({"captcha": str(exc)}) from exc
         email = attrs.get("email", "").strip().lower()
-        normalized_email = getattr(self, "_normalized_email", _normalize_gmail(email))
-        if not normalized_email:
-            raise serializers.ValidationError(
-                {"email": _("Допустимы только адреса @gmail.com.")}
-            )
+        normalized_email = getattr(self, "_normalized_email", email)
         attrs["email"] = email
         attrs["normalized_email"] = normalized_email
         attrs["client_ip"] = _client_ip_from_request(request)
@@ -351,7 +339,7 @@ class RegistrationStartSerializer(serializers.Serializer):
 
 
 class RegistrationResendSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    email = serializers.EmailField(error_messages={"invalid": _("Некорректный email")})
     captcha = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
@@ -440,7 +428,7 @@ class RegistrationResendSerializer(serializers.Serializer):
 
 
 class RegistrationVerifySerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    email = serializers.EmailField(error_messages={"invalid": _("Некорректный email")})
     code = serializers.CharField(max_length=6)
     auto_login = serializers.BooleanField(default=True)
     device_id = serializers.CharField(max_length=128, required=False, allow_blank=True)

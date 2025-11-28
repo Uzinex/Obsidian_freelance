@@ -11,9 +11,7 @@ from django.utils.translation import gettext as _
 class EmailDeliveryError(Exception):
     """Raised when transactional emails cannot be delivered."""
 
-    default_message = _(
-        "Не удалось отправить код проверки. Проверьте действительность вашего Gmail."
-    )
+    default_message = _("Не удалось отправить код. Попробуйте позже.")
 
     def __init__(self, message: str | None = None) -> None:
         super().__init__(message or self.default_message)
