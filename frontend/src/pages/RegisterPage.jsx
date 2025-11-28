@@ -70,6 +70,17 @@ function collectErrorMessage(payload) {
   return 'Не удалось отправить запрос. Попробуйте ещё раз.';
 }
 
+function mapEmailResponseMessage(payload) {
+  const message = collectErrorMessage(payload);
+  if (message.includes('Некорректный email')) {
+    return 'Некорректный email. Проверьте правильность адреса.';
+  }
+  if (message.includes('Не удалось отправить код')) {
+    return 'Не удалось отправить код. Попробуйте чуть позже или проверьте соединение.';
+  }
+  return 'Произошла ошибка. Попробуйте позже.';
+}
+
 export default function RegisterPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -239,7 +250,7 @@ export default function RegisterPage() {
           });
         });
       }
-      setFormError(collectErrorMessage(data));
+      setFormError(mapEmailResponseMessage(data));
     }
   }
 
@@ -330,7 +341,7 @@ export default function RegisterPage() {
       setGlobalMessage(response.detail);
       setCooldown(response.cooldown ?? 60);
     } catch (error) {
-      const message = collectErrorMessage(error?.response?.data);
+      const message = mapEmailResponseMessage(error?.response?.data);
       setFormError(message);
     } finally {
       setResendLoading(false);
@@ -367,7 +378,7 @@ export default function RegisterPage() {
                 <div className="step-label">{label}</div>
                 <div className="step-caption">
                   {stepName === 'form'
-                    ? 'Имя, Gmail, пароль'
+                    ? 'Имя, email, пароль'
                     : stepName === 'code'
                       ? 'Код из письма'
                       : 'Создание аккаунта'}
@@ -427,18 +438,18 @@ export default function RegisterPage() {
               {errors.nickname && <p className="error-text">{errors.nickname.message}</p>}
             </div>
             <div>
-              <label htmlFor="email">Gmail</label>
+              <label htmlFor="email">Email</label>
               <input
                 id="email"
                 type="email"
                 {...register('email', {
-                  required: 'Укажите Gmail',
+                  required: 'Укажите email',
                   pattern: {
-                    value: /^[A-Z0-9._%+-]+@gmail\.com$/i,
-                    message: 'Используйте адрес @gmail.com',
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: 'Некорректный email. Проверьте правильность адреса.',
                   },
                 })}
-                placeholder="you@gmail.com"
+                placeholder="you@example.com"
               />
               {errors.email && <p className="error-text">{errors.email.message}</p>}
             </div>
