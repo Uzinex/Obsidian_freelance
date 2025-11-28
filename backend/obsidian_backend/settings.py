@@ -270,6 +270,12 @@ NOTIFY_WEBPUSH_ENABLED = communications_flags.is_feature_enabled("notify.webpush
 
 RECAPTCHA_SECRET_KEY = os.getenv("RECAPTCHA_SECRET_KEY", "").strip()
 RECAPTCHA_MIN_SCORE = float(os.getenv("RECAPTCHA_MIN_SCORE", "0.7"))
+RECAPTCHA_FAIL_OPEN = os.getenv("RECAPTCHA_FAIL_OPEN", "true").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com").strip()
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))

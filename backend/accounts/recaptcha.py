@@ -5,6 +5,7 @@ from typing import Any
 
 import httpx
 from django.conf import settings
+from django.utils.log import getLogger
 
 
 class RecaptchaVerificationError(Exception):
@@ -17,6 +18,9 @@ class RecaptchaResult:
     score: float | None = None
     action: str | None = None
     raw: dict[str, Any] | None = None
+
+
+logger = getLogger(__name__)
 
 
 _VERIFY_ENDPOINT = "https://www.google.com/recaptcha/api/siteverify"
@@ -33,10 +37,16 @@ def verify_recaptcha(*, token: str, remote_ip: str | None = None) -> RecaptchaRe
     payload = {"secret": secret, "response": token}
     if remote_ip:
         payload["remoteip"] = remote_ip
+    fail_open = getattr(settings, "RECAPTCHA_FAIL_OPEN", True)
     try:
         response = httpx.post(_VERIFY_ENDPOINT, data=payload, timeout=5.0)
         response.raise_for_status()
     except httpx.HTTPError as exc:  # pragma: no cover - network failures are rare
+        logger.warning("reCAPTCHA verification unavailable: %s", exc)
+        if fail_open:
+            return RecaptchaResult(
+                success=True, score=1.0, action="fail-open", raw={"error": str(exc)}
+            )
         raise RecaptchaVerificationError("Captcha verification unavailable") from exc
     data = response.json()
     success = bool(data.get("success"))
