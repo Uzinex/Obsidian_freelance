@@ -186,7 +186,7 @@ class RegistrationVerifyView(AuthCookieMixin, APIView):
                 jti=refresh_jti,
                 ttl_seconds=jwt_conf.JWT_REFRESH_TTL_SECONDS,
             )
-        access_token, _ = issue_access_token(
+        access_token, _unused = issue_access_token(
             user=user,
             session=session,
             two_factor_verified=False,
@@ -336,7 +336,7 @@ class LoginView(AuthCookieMixin, APIView):
                 jti=refresh_jti,
                 ttl_seconds=jwt_conf.JWT_REFRESH_TTL_SECONDS,
             )
-        access_token, _ = issue_access_token(
+        access_token, _unused = issue_access_token(
             user=user,
             session=session,
             two_factor_verified=two_factor_verified,
@@ -397,7 +397,7 @@ class GoogleIdentityView(AuthCookieMixin, APIView):
                 jti=refresh_jti,
                 ttl_seconds=jwt_conf.JWT_REFRESH_TTL_SECONDS,
             )
-        access_token, _ = issue_access_token(
+        access_token, _unused = issue_access_token(
             user=user,
             session=session,
             two_factor_verified=False,
@@ -470,7 +470,7 @@ class RefreshView(AuthCookieMixin, APIView):
                 jti=refresh_jti,
                 ttl_seconds=jwt_conf.JWT_REFRESH_TTL_SECONDS,
             )
-        access_token, _ = issue_access_token(
+        access_token, _unused = issue_access_token(
             user=session.user,
             session=session,
             two_factor_verified=session.extra.get("two_factor_verified", False),
