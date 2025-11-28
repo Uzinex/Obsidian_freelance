@@ -33,7 +33,6 @@ from .models import (
 )
 from .emails import EmailDeliveryError, send_registration_code_email
 from .otp import generate_otp
-from .recaptcha import RecaptchaVerificationError, verify_recaptcha
 from .security import captcha_required
 from .twofactor import ensure_config, use_backup_code, verify_totp
 
@@ -166,7 +165,6 @@ class RegistrationStartSerializer(serializers.Serializer):
     email = serializers.EmailField(error_messages={"invalid": _("Некорректный email")})
     birth_year = serializers.IntegerField(required=False)
     password = serializers.CharField(write_only=True)
-    captcha = serializers.CharField(write_only=True)
     locale = serializers.ChoiceField(choices=[("ru", "ru"), ("uz", "uz")], default="ru")
     terms_accepted = serializers.BooleanField()
 
@@ -224,11 +222,6 @@ class RegistrationStartSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         request = self.context.get("request")
-        captcha_token = attrs.get("captcha")
-        try:
-            verify_recaptcha(token=captcha_token, remote_ip=_client_ip_from_request(request))
-        except RecaptchaVerificationError as exc:
-            raise serializers.ValidationError({"captcha": str(exc)}) from exc
         email = attrs.get("email", "").strip().lower()
         normalized_email = getattr(self, "_normalized_email", email)
         attrs["email"] = email
@@ -340,14 +333,9 @@ class RegistrationStartSerializer(serializers.Serializer):
 
 class RegistrationResendSerializer(serializers.Serializer):
     email = serializers.EmailField(error_messages={"invalid": _("Некорректный email")})
-    captcha = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
         request = self.context.get("request")
-        try:
-            verify_recaptcha(token=attrs.get("captcha"), remote_ip=_client_ip_from_request(request))
-        except RecaptchaVerificationError as exc:
-            raise serializers.ValidationError({"captcha": str(exc)}) from exc
         email = attrs.get("email", "").strip().lower()
         attrs["email"] = email
         attrs["client_ip"] = _client_ip_from_request(request)
