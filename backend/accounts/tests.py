@@ -1,6 +1,9 @@
 from datetime import timedelta
 from decimal import Decimal
 
+import re
+
+from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.urls import reverse
@@ -12,7 +15,8 @@ from marketplace.models import Category, Order, Skill
 
 from obsidian_backend import jwt_settings as jwt_conf
 
-from .models import Profile, User, VerificationRequest
+from .models import PendingRegistration, Profile, User, VerificationRequest
+from .serializers import RegistrationStartSerializer
 
 
 class ProfileSerializerTests(APITestCase):
@@ -207,6 +211,45 @@ class OrderRBACPermissionTests(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class RegistrationEmailTests(APITestCase):
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        EMAIL_HOST="smtp.gmail.com",
+        EMAIL_HOST_USER="noreply@example.com",
+        EMAIL_HOST_PASSWORD="strong-password",
+        DEFAULT_FROM_EMAIL="noreply@example.com",
+        ACCOUNTS_REGISTRATION_DAILY_LIMIT=10,
+        ACCOUNTS_REGISTRATION_RESEND_COOLDOWN_SECONDS=0,
+    )
+    def test_registration_start_sends_six_digit_code_via_email(self):
+        serializer = RegistrationStartSerializer(
+            data={
+                "first_name": "Test",
+                "last_name": "User",
+                "patronymic": "",
+                "nickname": "testuser",
+                "email": "test@example.com",
+                "birth_year": 1995,
+                "password": "Str0ngPass!",
+                "locale": "ru",
+                "terms_accepted": True,
+            },
+            context={"request": None},
+        )
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        result = serializer.save()
+
+        self.assertTrue(result.get("email_sent"))
+        pending = PendingRegistration.objects.get(email="test@example.com")
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.to, ["test@example.com"])
+        code_match = re.search(r"(\d{6})", message.body)
+        self.assertIsNotNone(code_match)
+        self.assertTrue(pending.verify_code(code_match.group(1)))
 
 
 class LoginViewTests(APITestCase):
