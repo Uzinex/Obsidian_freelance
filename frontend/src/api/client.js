@@ -117,8 +117,8 @@ export async function fetchSkills(params = {}) {
   return response.data;
 }
 
-export async function fetchOrders(params = {}) {
-  const response = await apiClient.get('marketplace/orders/', { params });
+export async function fetchOrders(params = {}, config = {}) {
+  const response = await apiClient.get('marketplace/orders/', { params, ...config });
   return response.data;
 }
 

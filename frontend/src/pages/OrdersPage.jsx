@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { fetchCategories, fetchOrders, fetchSkills } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -27,12 +27,18 @@ function toObject(params) {
   return Object.fromEntries(params.entries());
 }
 
+function serializeParams(object) {
+  const sortedEntries = Object.entries(object).sort(([a], [b]) => a.localeCompare(b));
+  return new URLSearchParams(sortedEntries).toString();
+}
+
 export default function OrdersPage() {
   const [params, setParams] = useSearchParams();
   const [orders, setOrders] = useState([]);
   const [categories, setCategories] = useState([]);
   const [skills, setSkills] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [debouncedQuery, setDebouncedQuery] = useState(() => toObject(params));
   const [savedFilters, setSavedFilters] = useState([]);
   const [saveLabel, setSaveLabel] = useState('');
   const [subscription, setSubscription] = useState(SUBSCRIPTION_DEFAULT);
@@ -45,6 +51,8 @@ export default function OrdersPage() {
 
   const role = user?.profile?.role || user?.role;
   const paramsKey = params.toString();
+  const lastOrderQueryRef = useRef('');
+  const filtersLoadedRef = useRef(false);
 
   useEffect(() => {
     async function loadFilters() {
@@ -59,23 +67,56 @@ export default function OrdersPage() {
         console.error('Не удалось загрузить фильтры', error);
       }
     }
-    loadFilters();
+    if (!filtersLoadedRef.current) {
+      filtersLoadedRef.current = true;
+      loadFilters();
+    }
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
+    let isMounted = true;
+
     async function loadOrders() {
+      const queryString = serializeParams(debouncedQuery);
+      if (queryString === lastOrderQueryRef.current) {
+        return;
+      }
+      lastOrderQueryRef.current = queryString;
+
       setLoading(true);
       try {
-        const query = toObject(params);
-        const data = await fetchOrders(query);
-        setOrders(data.results || data);
+        const data = await fetchOrders(debouncedQuery, { signal: controller.signal });
+        if (isMounted) {
+          setOrders(data.results || data);
+        }
       } catch (error) {
-        console.error('Не удалось загрузить заказы', error);
+        if (!controller.signal.aborted && error.name !== 'CanceledError' && error.name !== 'AbortError') {
+          console.error('Не удалось загрузить заказы', error);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
+
     loadOrders();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [debouncedQuery]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedQuery(toObject(params));
+    }, 250);
+
+    return () => {
+      clearTimeout(timeout);
+    };
   }, [paramsKey]);
 
   useEffect(() => {
