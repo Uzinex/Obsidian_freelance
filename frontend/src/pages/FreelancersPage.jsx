@@ -8,6 +8,30 @@ import Icon from '../components/Icon.jsx';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
+const normalizeCategoryValue = (value) => {
+  if (!value) return '';
+  if (typeof value === 'string') return value.trim().toLowerCase();
+  if (typeof value === 'object') {
+    return (value.slug || value.name || '').toString().trim().toLowerCase();
+  }
+  return String(value).trim().toLowerCase();
+};
+
+const getCategoryKey = (category) => normalizeCategoryValue(category?.name || category?.slug || category);
+
+const getCategoryKeys = (category) => {
+  const keys = new Set();
+  const normalized = normalizeCategoryValue(category);
+  if (normalized) keys.add(normalized);
+  if (category && typeof category === 'object') {
+    const slugKey = normalizeCategoryValue(category.slug);
+    const nameKey = normalizeCategoryValue(category.name);
+    if (slugKey) keys.add(slugKey);
+    if (nameKey) keys.add(nameKey);
+  }
+  return keys;
+};
+
 function resolveAvatar(url) {
   if (!url) return '';
   try {
@@ -80,7 +104,7 @@ export default function FreelancersPage() {
   const filteredProfiles = useMemo(() => {
     if (!selectedCategory) return profiles;
     return profiles.filter((profile) =>
-      profile.skill_details?.some((skill) => skill.category?.toLowerCase() === selectedCategory.toLowerCase()),
+      profile.skill_details?.some((skill) => getCategoryKeys(skill.category).has(selectedCategory)),
     );
   }, [profiles, selectedCategory]);
 
@@ -153,8 +177,8 @@ export default function FreelancersPage() {
             <button
               key={category.id}
               type="button"
-              className={selectedCategory === category.name ? 'chip active' : 'chip'}
-              onClick={() => setSelectedCategory(category.name)}
+              className={selectedCategory === getCategoryKey(category) ? 'chip active' : 'chip'}
+              onClick={() => setSelectedCategory(getCategoryKey(category))}
             >
               {category.name}
             </button>
