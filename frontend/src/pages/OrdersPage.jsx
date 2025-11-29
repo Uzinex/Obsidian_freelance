@@ -39,6 +39,9 @@ export default function OrdersPage() {
   const [skills, setSkills] = useState([]);
   const [loading, setLoading] = useState(true);
   const [debouncedQuery, setDebouncedQuery] = useState(() => toObject(params));
+  const [debouncedQueryKey, setDebouncedQueryKey] = useState(() =>
+    serializeParams(toObject(params)),
+  );
   const [savedFilters, setSavedFilters] = useState([]);
   const [saveLabel, setSaveLabel] = useState('');
   const [subscription, setSubscription] = useState(SUBSCRIPTION_DEFAULT);
@@ -51,7 +54,6 @@ export default function OrdersPage() {
 
   const role = user?.profile?.role || user?.role;
   const paramsKey = params.toString();
-  const lastOrderQueryRef = useRef('');
   const filtersLoadedRef = useRef(false);
 
   useEffect(() => {
@@ -78,12 +80,6 @@ export default function OrdersPage() {
     let isMounted = true;
 
     async function loadOrders() {
-      const queryString = serializeParams(debouncedQuery);
-      if (queryString === lastOrderQueryRef.current) {
-        return;
-      }
-      lastOrderQueryRef.current = queryString;
-
       setLoading(true);
       try {
         const data = await fetchOrders(debouncedQuery, { signal: controller.signal });
@@ -107,17 +103,23 @@ export default function OrdersPage() {
       isMounted = false;
       controller.abort();
     };
-  }, [debouncedQuery]);
+  }, [debouncedQuery, debouncedQueryKey]);
 
   useEffect(() => {
+    const nextQuery = toObject(params);
+    const nextQueryKey = serializeParams(nextQuery);
+    if (nextQueryKey === debouncedQueryKey) {
+      return undefined;
+    }
     const timeout = setTimeout(() => {
-      setDebouncedQuery(toObject(params));
+      setDebouncedQuery(nextQuery);
+      setDebouncedQueryKey(nextQueryKey);
     }, 250);
 
     return () => {
       clearTimeout(timeout);
     };
-  }, [paramsKey]);
+  }, [debouncedQueryKey, paramsKey]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
