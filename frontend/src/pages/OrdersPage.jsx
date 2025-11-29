@@ -164,13 +164,20 @@ export default function OrdersPage() {
 
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
+    const currentValue = params.get(name) || '';
+    const nextValue = typeof value === 'string' ? value : String(value ?? '');
+
+    if (currentValue === nextValue) {
+      return;
+    }
+
     const next = new URLSearchParams(params);
-    if (value) {
-      next.set(name, value);
+    if (nextValue) {
+      next.set(name, nextValue);
     } else {
       next.delete(name);
     }
-    setParams(next);
+    setParams(next, { replace: true });
   };
 
   const handleClearFilters = () => {
