@@ -51,7 +51,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     permission_classes = [RoleBasedAccessPermission]
     queryset = (
         Order.objects.select_related("client", "client__user")
-        .prefetch_related("required_skills")
+        .prefetch_related("required_skills", "required_skills__category")
         .all()
     )
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
